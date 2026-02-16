@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DevTools Debug Page</title>
+</head>
+<body>
+    <h1>DevTools Panel Test</h1>
+    <p>This page is for testing the DevTools panel functionality.</p>
+
+    <button onclick="makeRequest()">Make API Request</button>
+    <button onclick="loadImage()">Load Image</button>
+
+    <div id="results"></div>
+
+    <script>
+        function makeRequest() {
+            fetch('https://jsonplaceholder.typicode.com/posts/1')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('results').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                });
+        }
+
+        function loadImage() {
+            const img = new Image();
+            img.onload = () => console.log('Image loaded');
+            img.src = 'https://via.placeholder.com/100x100?' + Date.now();
+        }
+
+        // Auto-make some requests for testing
+        setTimeout(makeRequest, 1000);
+        setTimeout(loadImage, 2000);
+    </script>
+</body>
+</html>

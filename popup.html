@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Website Migration Analyzer</title>
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="icons/icon32.png" alt="Migration Analyzer" class="logo" onerror="this.style.display='none'">
+      <h1>Migration Analyzer</h1>
+    </div>
+
+    <!-- Status -->
+    <div class="status" id="status">
+      <div class="status-indicator" id="statusIndicator"></div>
+      <span id="statusText">Ready to analyze</span>
+    </div>
+
+    <!-- Current URL -->
+    <div class="current-url" id="currentUrl">
+      <strong>Current:</strong> <span id="urlText">Loading...</span>
+    </div>
+
+    <!-- Analysis Options -->
+    <div class="section">
+      <h3>Analysis Options</h3>
+      <div class="options">
+        <label class="checkbox-label">
+          <input type="checkbox" id="includeAssets" checked>
+          <span>Download Assets (HTML, CSS, JS, Images)</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="captureNetwork" checked>
+          <span>Capture Network Requests</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="reloadPage" checked>
+          <span>Reload Page to Capture Initial Requests (Recommended for SSR sites)</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="triggerNavigation">
+          <span>Trigger Navigation to Capture Client-Side Requests (Next.js)</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="takeScreenshot" checked>
+          <span>Take Screenshot</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="auditServices" checked>
+          <span>Audit Third-Party Services</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="detectFramework" checked>
+          <span>Detect Frameworks</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section">
+      <button id="startAnalysis" class="btn btn-primary">
+        <span id="startAnalysisText">Start Analysis</span>
+        <div id="startAnalysisSpinner" class="spinner" style="display: none;"></div>
+      </button>
+      <button id="testMinimal" class="btn" style="background: #ff9800;">
+        Test Minimal
+      </button>
+      <button id="debugStatus" class="btn" style="background: #9c27b0;">
+        Debug Status
+      </button>
+      <button id="showRequests" class="btn" style="background: #607d8b;">
+        Show All Requests
+      </button>
+      <button id="downloadPackage" class="btn btn-secondary" disabled>
+        Download Package
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div class="section" id="resultsSection" style="display: none;">
+      <h3>Analysis Results</h3>
+      <div class="results">
+        <div class="result-item">
+          <label>Assets Found:</label>
+          <span id="assetsCount">-</span>
+        </div>
+        <div class="result-item">
+          <label>Network Requests:</label>
+          <span id="networkCount">-</span>
+        </div>
+        <div class="result-item">
+          <label>Frameworks Detected:</label>
+          <span id="frameworksCount">-</span>
+        </div>
+        <div class="result-item">
+          <label>Third-Party Services:</label>
+          <span id="servicesCount">-</span>
+        </div>
+      </div>
+
+      <!-- Framework Details -->
+      <div id="frameworkDetails" class="details-section" style="display: none;">
+        <h4>Detected Frameworks</h4>
+        <ul id="frameworksList"></ul>
+      </div>
+
+      <!-- Service Details -->
+      <div id="serviceDetails" class="details-section" style="display: none;">
+        <h4>Third-Party Services</h4>
+        <ul id="servicesList"></ul>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="section" id="progressSection" style="display: none;">
+      <h3>Analysis Progress</h3>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">Initializing...</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <small>Migration Analyzer v1.0 - <a href="#" id="helpLink">Help</a></small>
+    </div>
+  </div>
+
+  <script src="local-analyzer.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

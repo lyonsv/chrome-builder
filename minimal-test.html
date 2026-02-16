@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minimal Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .btn { padding: 10px 20px; margin: 10px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .result { margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Minimal Extension Test</h1>
+    <button class="btn" onclick="testBasic()">Test Basic Analysis</button>
+    <button class="btn" onclick="testNetworkOnly()">Test Network Only</button>
+    <button class="btn" onclick="testDOMOnly()">Test DOM Only</button>
+
+    <div class="result" id="result">Click a button to test</div>
+
+    <script>
+        async function testBasic() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing basic functionality...';
+
+            try {
+                // Test basic chrome APIs
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+
+                result.innerHTML = `
+                    <strong>Basic Test Results:</strong><br>
+                    URL: ${currentTab.url}<br>
+                    Title: ${currentTab.title}<br>
+                    Tab ID: ${currentTab.id}
+                `;
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function testNetworkOnly() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing network analysis only...';
+
+            try {
+                // Send message to background script for network data only
+                const response = await chrome.runtime.sendMessage({
+                    action: 'GET_NETWORK_DATA',
+                    data: { minimal: true }
+                });
+
+                if (response && response.success) {
+                    const requests = response.data || [];
+                    result.innerHTML = `
+                        <strong>Network Test Results:</strong><br>
+                        Network requests captured: ${requests.length}<br>
+                        ${requests.slice(0, 3).map(req => `• ${req.method} ${req.url}`).join('<br>')}
+                        ${requests.length > 3 ? '<br>... and more' : ''}
+                    `;
+                } else {
+                    result.innerHTML = `<strong>Network Error:</strong> ${response?.error || 'Unknown error'}`;
+                }
+            } catch (error) {
+                result.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function testDOMOnly() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing DOM inspection only...';
+
+            try {
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                const currentTab = tabs[0];
+
+                // Test minimal DOM inspection
+                const domResults = await chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    func: () => {
+                        return {
+                            url: window.location.href,
+                            title: document.title,
+                            scriptCount: document.querySelectorAll('script').length,
+                            linkCount: document.querySelectorAll('link').length,
+                            imageCount: document.querySelectorAll('img').length,
+                            hasReact: !!(window.React || window.__REACT_DEVTOOLS_GLOBAL_HOOK__),
+                            hasVue: !!(window.Vue || window.__VUE__),
+                            hasAngular: !!(window.ng || window.angular)
+                        };
+                    }
+                });
+
+                const data = domResults[0]?.result || {};
+                result.innerHTML = `
+                    <strong>DOM Test Results:</strong><br>
+                    Title: ${data.title}<br>
+                    Scripts: ${data.scriptCount}<br>
+                    Links: ${data.linkCount}<br>
+                    Images: ${data.imageCount}<br>
+                    React: ${data.hasReact ? 'Yes' : 'No'}<br>
+                    Vue: ${data.hasVue ? 'Yes' : 'No'}<br>
+                    Angular: ${data.hasAngular ? 'Yes' : 'No'}
+                `;
+            } catch (error) {
+                result.innerHTML = `<strong>DOM Error:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

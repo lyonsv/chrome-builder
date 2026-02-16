@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Website Migration Analyzer",
+  "version": "1.0.0",
+  "description": "Comprehensive tool for analyzing websites for framework migration - captures assets, network traffic, and third-party services",
+
+  "permissions": [
+    "activeTab",
+    "webRequest",
+    "downloads",
+    "scripting",
+    "storage",
+    "tabs",
+    "debugger"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Migration Analyzer",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "32": "icons/icon32.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+
+  "devtools_page": "devtools.html",
+
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js", "local-analyzer.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.svg",
+    "32": "icons/icon32.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  }
+}

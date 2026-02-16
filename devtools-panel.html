@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Migration Analyzer - DevTools Panel</title>
+  <link rel="stylesheet" href="css/devtools-panel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <div class="panel-header">
+      <div class="header-left">
+        <h1>Migration Analyzer</h1>
+        <div class="recording-status" id="recordingStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Not Recording</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="startRecording" class="btn btn-primary">Start Recording</button>
+        <button id="clearData" class="btn btn-secondary">Clear</button>
+        <button id="exportData" class="btn btn-secondary" disabled>Export</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-container">
+      <div class="tabs">
+        <button class="tab active" data-tab="network">Network Requests</button>
+        <button class="tab" data-tab="assets">Assets</button>
+        <button class="tab" data-tab="frameworks">Frameworks</button>
+        <button class="tab" data-tab="services">Third-Party Services</button>
+        <button class="tab" data-tab="performance">Performance</button>
+      </div>
+
+      <!-- Network Tab -->
+      <div class="tab-content active" id="networkTab">
+        <div class="tab-controls">
+          <div class="filters">
+            <label>
+              <input type="checkbox" id="filterXHR" checked> XHR/Fetch
+            </label>
+            <label>
+              <input type="checkbox" id="filterJS" checked> JavaScript
+            </label>
+            <label>
+              <input type="checkbox" id="filterCSS" checked> Stylesheets
+            </label>
+            <label>
+              <input type="checkbox" id="filterImages" checked> Images
+            </label>
+            <label>
+              <input type="checkbox" id="filterOther" checked> Other
+            </label>
+          </div>
+          <div class="search">
+            <input type="text" id="searchRequests" placeholder="Search requests...">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="requests-table" id="requestsTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Time</th>
+                <th>Domain</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+              <!-- Requests will be populated here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="request-details" id="requestDetails" style="display: none;">
+          <h3>Request Details</h3>
+          <div class="details-tabs">
+            <button class="details-tab active" data-details-tab="headers">Headers</button>
+            <button class="details-tab" data-details-tab="response">Response</button>
+            <button class="details-tab" data-details-tab="timing">Timing</button>
+          </div>
+          <div class="details-content" id="detailsContent">
+            <!-- Details content will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Assets Tab -->
+      <div class="tab-content" id="assetsTab">
+        <div class="assets-summary">
+          <div class="summary-cards">
+            <div class="summary-card">
+              <h3>HTML Files</h3>
+              <div class="count" id="htmlCount">0</div>
+            </div>
+            <div class="summary-card">
+              <h3>CSS Files</h3>
+              <div class="count" id="cssCount">0</div>
+            </div>
+            <div class="summary-card">
+              <h3>JavaScript</h3>
+              <div class="count" id="jsCount">0</div>
+            </div>
+            <div class="summary-card">
+              <h3>Images</h3>
+              <div class="count" id="imagesCount">0</div>
+            </div>
+            <div class="summary-card">
+              <h3>Fonts</h3>
+              <div class="count" id="fontsCount">0</div>
+            </div>
+            <div class="summary-card">
+              <h3>Other</h3>
+              <div class="count" id="otherCount">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="assets-list" id="assetsList">
+          <!-- Assets will be populated here -->
+        </div>
+      </div>
+
+      <!-- Frameworks Tab -->
+      <div class="tab-content" id="frameworksTab">
+        <div class="frameworks-list" id="frameworksList">
+          <!-- Frameworks will be populated here -->
+        </div>
+      </div>
+
+      <!-- Services Tab -->
+      <div class="tab-content" id="servicesTab">
+        <div class="services-summary">
+          <h3>Detected Third-Party Services</h3>
+          <p>External services and libraries detected on this page:</p>
+        </div>
+        <div class="services-list" id="servicesList">
+          <!-- Services will be populated here -->
+        </div>
+      </div>
+
+      <!-- Performance Tab -->
+      <div class="tab-content" id="performanceTab">
+        <div class="performance-metrics" id="performanceMetrics">
+          <!-- Performance data will be populated here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="devtools-panel.js"></script>
+</body>
+</html>
