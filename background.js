@@ -73,6 +73,14 @@ class MigrationAnalyzer {
 
     console.log('Network monitoring setup complete');
     console.log('Available permissions:', chrome.runtime.getManifest().permissions);
+
+    // Keep-alive alarm listener — firing the alarm resets the SW 30-second idle timer
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name.startsWith('keepalive_')) {
+        // Firing the alarm event resets the SW 30-second idle timer — no other action needed
+        console.log(`[SW keep-alive] ping — ${alarm.name}`);
+      }
+    });
   }
 
   async handleMessage(message, sender, sendResponse) {
@@ -184,6 +192,7 @@ class MigrationAnalyzer {
 
     // Add to active analysis tabs and include recent requests in analysis
     this.activeAnalysisTabs.add(tabId);
+    this.startKeepAlive(tabId);
 
     // Copy recent requests to analysis requests (include pre-analysis requests)
     const recentRequests = this.recentRequests.get(tabId) || [];
@@ -221,6 +230,7 @@ class MigrationAnalyzer {
 
     // Remove from active analysis tabs
     this.activeAnalysisTabs.delete(tabId);
+    this.stopKeepAlive(tabId);
 
     // Keep the data but stop monitoring new requests
     console.log('Analysis stopped for tab:', tabId);
@@ -453,8 +463,22 @@ class MigrationAnalyzer {
     console.log('Analysis package downloaded successfully');
   }
 
+  startKeepAlive(tabId) {
+    // periodInMinutes: 0.5 is the minimum (30 seconds) — Chrome 120+ enforces this floor
+    chrome.alarms.create(`keepalive_${tabId}`, { periodInMinutes: 0.5 });
+    console.log(`[SW keep-alive] started for tab ${tabId}`);
+  }
+
+  stopKeepAlive(tabId) {
+    chrome.alarms.clear(`keepalive_${tabId}`, (wasCleared) => {
+      if (wasCleared) console.log(`[SW keep-alive] stopped for tab ${tabId}`);
+    });
+  }
+
   // Cleanup when tab is closed or navigation occurs
   async cleanup(tabId) {
+    this.stopKeepAlive(tabId);
+
     try {
       await chrome.debugger.detach({ tabId });
     } catch (error) {
