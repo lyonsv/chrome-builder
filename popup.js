@@ -481,7 +481,7 @@ class PopupController {
             });
           }
 
-          // Component-based architecture detection (like site4)
+          // Detect component experience registry (observable: global object with 10+ component keys)
           if (window.experiences && typeof window.experiences === 'object' && Object.keys(window.experiences).length > 10) {
             const services = new Set();
             Object.values(window.experiences).forEach(exp => {

@@ -334,7 +334,7 @@ class WebsiteAnalyzer {
       });
     }
 
-    // Component-based data architecture (like what we see in site4)
+    // Detect component experience registry (observable: global object with 10+ component keys)
     if (window.experiences && typeof window.experiences === 'object' && Object.keys(window.experiences).length > 10) {
       frameworks.push({
         name: 'Component-based Architecture',
