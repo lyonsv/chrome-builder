@@ -28,7 +28,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Computed-style-sized payloads (2-5 MB) transfer from content script to popup without the message channel crashing or stalling the page
   3. Clicking download produces one ZIP file containing all output files, not a sequence of OS save dialogs
   4. Searching the entire codebase for any known site name (e.g. iStockPhoto, Getty, Shutterstock) returns zero matches — all detection is expressed as observable patterns only
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Remove all hardcoded site names (TRACK-03)
+- [ ] 01-02-PLAN.md — Service worker keep-alive and session checkpoints (INFRA-01)
+- [ ] 01-03-PLAN.md — fflate ZIP download replacing single-JSON output (INFRA-03)
+- [ ] 01-04-PLAN.md — Chunked IPC transport with progress and retry UI (INFRA-02)
 
 ### Phase 2: Style Capture
 **Goal**: Users can export a deduplicated map of computed styles for every element on a page, including interaction-state rules and resolved CSS custom property values, structured so an LLM understands which styles apply to which element
@@ -69,7 +75,7 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Foundation | 0/TBD | Not started | - |
+| 1. Infrastructure Foundation | 0/4 | Not started | - |
 | 2. Style Capture | 0/TBD | Not started | - |
 | 3. Scoped Output and Assets | 0/TBD | Not started | - |
 | 4. Tracking Plan | 0/TBD | Not started | - |
