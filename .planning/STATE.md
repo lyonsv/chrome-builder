@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-infrastructure-foundation 01-01-PLAN.md
-last_updated: "2026-03-13T22:54:45.980Z"
+stopped_at: Completed 01-infrastructure-foundation 01-02-PLAN.md
+last_updated: "2026-03-13T22:54:55.308Z"
 last_activity: 2026-03-13 — Roadmap created, ready for Phase 1 planning
 progress:
   total_phases: 4
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 ## Current Position
 
 Phase: 1 of 4 (Infrastructure Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — Roadmap created, ready for Phase 1 planning
+Plan: 2 of 4 in current phase
+Status: In progress
+Last activity: 2026-03-13 — Completed plan 01-02 (SW keep-alive and session checkpoints)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - Roadmap: TRACK-03 assigned to Phase 1 — agnostic detection is infrastructure cleanup required before any feature ships
 - [Phase 01-infrastructure-foundation]: istocksource.html deleted (not renamed) — contained full iStock site content, no value as generic test fixture
 - [Phase 01-infrastructure-foundation]: Detection comments must describe observable signals only (global variable shape, count thresholds) — never site names
+- [Phase 01-infrastructure-foundation]: Used chrome.alarms (not setInterval) for SW keep-alive — alarms persist across SW termination, setInterval is destroyed
+- [Phase 01-infrastructure-foundation]: Checkpoints store only minimal metadata (stage, tabId, url, ts) not full payload — session storage quota is 10MB shared
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T22:54:39.381Z
-Stopped at: Completed 01-infrastructure-foundation 01-01-PLAN.md
+Last session: 2026-03-13T22:54:55.306Z
+Stopped at: Completed 01-infrastructure-foundation 01-02-PLAN.md
 Resume file: None
