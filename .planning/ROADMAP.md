@@ -44,7 +44,11 @@ Plans:
   1. The exported output contains a computed-styles file where each unique element signature (tag + class combination) maps to ~60 design-system-relevant CSS properties with resolved values — identical siblings appear once, not hundreds of times
   2. The exported output includes interaction-state rules so an LLM can see what a button looks like on `:hover` and `:focus`, not just its default state
   3. The exported output contains both the CSS custom property name (e.g. `--color-primary`) and its resolved value (e.g. `#E8462A`) for every token in use, so the design token vocabulary is legible alongside raw computed values
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Test fixture + core DOM walk, deduplication, and computed style capture (STYLE-01)
+- [ ] 02-02-PLAN.md — Pseudo-class state extraction, CSS token vocabulary, and ZIP integration (STYLE-02, STYLE-03)
 
 ### Phase 3: Scoped Output and Assets
 **Goal**: Users can capture a single component or element subtree and receive a structured directory — not a full-page dump — containing HTML, styles, actual downloaded asset files, and a component hierarchy annotation, sized for an LLM context window
@@ -76,6 +80,6 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Foundation | 4/4 | Complete   | 2026-03-13 |
-| 2. Style Capture | 0/TBD | Not started | - |
+| 2. Style Capture | 0/2 | Not started | - |
 | 3. Scoped Output and Assets | 0/TBD | Not started | - |
 | 4. Tracking Plan | 0/TBD | Not started | - |
