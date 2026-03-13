@@ -4,6 +4,16 @@ importScripts('/vendor/fflate.min.js');
 
 // Background service worker for Website Migration Analyzer
 
+// Safe base64 for large Uint8Arrays in SW context (no Blob URL, no spread overflow)
+function uint8ArrayToBase64(bytes) {
+  const CHUNK = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + CHUNK, bytes.length)));
+  }
+  return btoa(binary);
+}
+
 class MigrationAnalyzer {
   constructor() {
     this.networkRequests = new Map(); // Store all requests for all tabs
@@ -127,7 +137,7 @@ class MigrationAnalyzer {
             throw new Error('No valid tab ID provided for DOWNLOAD_PACKAGE');
           }
           console.log(`Downloading package for tab ${tabId}`);
-          await this.downloadAnalysisPackage(tabId, data);
+          await this.downloadAsZip(tabId, data);
           console.log(`Package downloaded successfully for tab ${tabId}`);
           sendResponse({ success: true });
           break;
@@ -444,37 +454,66 @@ class MigrationAnalyzer {
     console.log('Analysis stored successfully');
   }
 
-  async downloadAnalysisPackage(tabId, packageData) {
+  async downloadAsZip(tabId, packageData) {
     const analysisData = this.analysisData.get(tabId) || {};
+    const networkData = this.getNetworkData(tabId);
 
-    // Create comprehensive analysis package
-    const packageInfo = {
-      ...analysisData,
-      networkRequests: this.getNetworkData(tabId),
-      generatedAt: new Date().toISOString(),
+    // Build index.json — manifest + summary for the ZIP root
+    const indexData = {
+      url: analysisData.url || packageData.url,
+      title: analysisData.title || packageData.title,
+      capturedAt: new Date().toISOString(),
+      stages: {
+        html: false,        // Phase 3
+        css: false,         // Phase 2
+        computedStyles: false, // Phase 2
+        assets: false,      // Phase 3
+        network: networkData && networkData.length > 0,
+        tracking: false     // Phase 4
+      },
       ...packageData
     };
 
-    // Convert to JSON string
-    const jsonString = JSON.stringify(packageInfo, null, 2);
+    // Build file tree — pre-scaffold final Phase 3 directory layout
+    // fflate represents empty dirs with trailing slash key + empty object value
+    const fileTree = {
+      'index.json': fflate.strToU8(JSON.stringify(indexData, null, 2)),
+      'html/':             {},
+      'css/':              {},
+      'computed-styles/':  {},
+      'assets/':           {},
+      'network/':          {},
+      'tracking/':         {},
+    };
 
-    // Create data URL instead of blob URL (works in service workers)
-    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonString);
+    // Populate what Phase 1 has: network requests
+    if (networkData && networkData.length > 0) {
+      fileTree['network/'] = {
+        'requests.json': fflate.strToU8(JSON.stringify(networkData, null, 2))
+      };
+    }
 
-    // Generate filename
-    const domain = packageInfo.url ?
-      new URL(packageInfo.url).hostname.replace(/[^a-z0-9]/gi, '_') :
-      'unknown-site';
+    // Compress at level 1 (fast, minimal CPU — ZIP is for packaging, not archival)
+    const zipped = fflate.zipSync(fileTree, { level: 1 });
+
+    // Convert Uint8Array to base64 data URL — Blob URLs not available in SW
+    const base64 = uint8ArrayToBase64(zipped);
+    const dataUrl = `data:application/zip;base64,${base64}`;
+
+    // Generate filename from captured URL
+    const domain = indexData.url
+      ? new URL(indexData.url).hostname.replace(/[^a-z0-9]/gi, '_')
+      : 'unknown-site';
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[^0-9]/g, '');
 
     await chrome.downloads.download({
       url: dataUrl,
-      filename: `migration-analysis-${domain}-${timestamp}.json`,
-      saveAs: true
+      filename: `analysis-${domain}-${timestamp}.zip`,
+      saveAs: false  // No dialog — single automatic download per INFRA-03
     });
 
     await this.clearCheckpoint(tabId);
-    console.log('Analysis package downloaded successfully');
+    console.log(`[ZIP] Downloaded analysis-${domain}-${timestamp}.zip`);
   }
 
   startKeepAlive(tabId) {
