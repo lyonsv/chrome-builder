@@ -6,7 +6,18 @@
       "Bash(chmod:*)",
       "Bash(./create-icons.sh:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial release: Website Migration Analyzer Chrome Extension\n\nFeatures:\n- Complete asset discovery (HTML, CSS, JS, images, fonts)\n- Next.js SSR data extraction from __NEXT_DATA__\n- GraphQL endpoint and query discovery\n- Real-time network request monitoring with page reload triggers\n- Framework detection (React, Vue, Angular, Next.js, Nuxt.js)\n- Third-party service analysis and categorization\n- Advanced DevTools panel for network monitoring\n- Comprehensive JSON export with migration context\n\nTechnical highlights:\n- Manifest V3 Chrome extension\n- Background service worker for network capture\n- Content script with SSR data parsing\n- Multi-signal framework detection\n- Entity relationship analysis from pageProps\n- Real-time debugging tools\n\nBuilt for developers migrating websites to modern frameworks.\nEOF\n)\")",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 5s npm start)",
+      "Bash(timeout 10s npm start)",
+      "Bash(node:*)",
+      "Bash(timeout 3s npm start)"
     ],
     "deny": [],
     "ask": []

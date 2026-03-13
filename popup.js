@@ -471,6 +471,41 @@ class PopupController {
             });
           }
 
+          // Module Federation detection
+          if (window.__webpack_require__ || document.querySelector('script[src*="remoteEntry"]')) {
+            frameworks.push({
+              name: 'Module Federation',
+              type: 'architecture',
+              confidence: 0.9,
+              detectionMethod: 'dom-inspection'
+            });
+          }
+
+          // Component-based architecture detection (like site4)
+          if (window.experiences && typeof window.experiences === 'object' && Object.keys(window.experiences).length > 10) {
+            const services = new Set();
+            Object.values(window.experiences).forEach(exp => {
+              if (exp.metadata && typeof exp.metadata === 'object') {
+                Object.keys(exp.metadata).forEach(service => {
+                  if (service !== 'true' && service !== 'false') {
+                    services.add(service);
+                  }
+                });
+              }
+            });
+
+            frameworks.push({
+              name: 'Component-based Architecture',
+              type: 'architecture',
+              confidence: 0.8,
+              detectionMethod: 'dom-inspection',
+              details: {
+                componentCount: Object.keys(window.experiences).length,
+                services: Array.from(services)
+              }
+            });
+          }
+
           return frameworks;
         }
       });
@@ -722,7 +757,7 @@ class PopupController {
   displayResults() {
     if (!this.analysisData) return;
 
-    const { assets, frameworks, thirdPartyServices, networkRequests, cspRestricted, analysisMode } = this.analysisData;
+    const { assets, frameworks, thirdPartyServices, networkRequests, cspRestricted, analysisMode, moduleFederationData } = this.analysisData;
 
     // Show analysis mode status
     if (cspRestricted || analysisMode || this.analysisData.quotaLimited) {
@@ -766,14 +801,58 @@ class PopupController {
 
       frameworks.forEach(framework => {
         const li = document.createElement('li');
+        let versionInfo = framework.version || 'Unknown version';
+
+        // Special handling for architecture frameworks
+        if (framework.type === 'architecture') {
+          if (framework.name === 'Component-based Architecture' && framework.details) {
+            versionInfo = `${framework.details.componentCount} components`;
+            if (framework.details.services.length > 0) {
+              versionInfo += ` (${framework.details.services.join(', ')})`;
+            }
+          } else if (framework.name === 'Module Federation') {
+            versionInfo = `Confidence: ${Math.round(framework.confidence * 100)}%`;
+          }
+        }
+
         li.innerHTML = `
           <div class="framework-item">
             <span class="framework-name">${framework.name}</span>
-            <span class="framework-version">${framework.version || 'Unknown version'}</span>
+            <span class="framework-version">${versionInfo}</span>
           </div>
         `;
         this.frameworksList.appendChild(li);
       });
+    }
+
+    // Add Module Federation details if available
+    if (moduleFederationData && (moduleFederationData.hasModuleFederation || moduleFederationData.hasComponentData)) {
+      const mfDetails = document.createElement('div');
+      mfDetails.className = 'module-federation-details';
+      mfDetails.innerHTML = `
+        <h4>Module Federation & Component Analysis</h4>
+        <div class="mf-info">
+          ${moduleFederationData.hasModuleFederation ? `
+            <p>✓ Module Federation Detected</p>
+            <p>Remote Entries: ${moduleFederationData.remoteEntries.length}</p>
+          ` : ''}
+          ${moduleFederationData.hasComponentData ? `
+            <p>✓ Component Data System Detected</p>
+            <p>Window Data Objects: ${Object.keys(moduleFederationData.windowDataObjects).length}</p>
+            <p>Federated Components: ${moduleFederationData.federatedComponents.length}</p>
+            <p>Microfrontend Services: ${moduleFederationData.microfrontendServices.length}</p>
+            ${moduleFederationData.componentDataStructure ? `
+              <p>Architecture Patterns: ${moduleFederationData.componentDataStructure.architecturePatterns.join(', ') || 'Standard'}</p>
+            ` : ''}
+          ` : ''}
+        </div>
+      `;
+
+      // Insert after frameworks or at the beginning of results
+      const insertPoint = this.frameworkDetails.style.display === 'block'
+        ? this.frameworkDetails.nextSibling
+        : this.frameworkDetails;
+      this.frameworkDetails.parentNode.insertBefore(mfDetails, insertPoint);
     }
 
     // Show services

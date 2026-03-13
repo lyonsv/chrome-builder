@@ -37,6 +37,9 @@ class WebsiteAnalyzer {
       // Extract Next.js SSR data (separate since it's synchronous)
       const nextJsData = this.extractNextJsData();
 
+      // Extract module federation and component data (synchronous)
+      const moduleFederationData = this.extractModuleFederationData();
+
       return {
         url: window.location.href,
         title: document.title,
@@ -44,6 +47,7 @@ class WebsiteAnalyzer {
         frameworks: this.frameworks,
         thirdPartyServices: this.thirdPartyServices,
         nextJsData: nextJsData,
+        moduleFederationData: moduleFederationData,
         metadata: this.metadata,
         timestamp: new Date().toISOString()
       };
@@ -319,6 +323,30 @@ class WebsiteAnalyzer {
       });
     }
 
+    // Module Federation / Microfrontend Architecture
+    if (window.__webpack_require__ ||
+        document.querySelector('script[src*="remoteEntry"]') ||
+        window.experiences && Object.keys(window.experiences).some(key => key.includes('federated'))) {
+      frameworks.push({
+        name: 'Module Federation',
+        type: 'architecture',
+        confidence: this.calculateModuleFederationConfidence()
+      });
+    }
+
+    // Component-based data architecture (like what we see in site4)
+    if (window.experiences && typeof window.experiences === 'object' && Object.keys(window.experiences).length > 10) {
+      frameworks.push({
+        name: 'Component-based Architecture',
+        type: 'architecture',
+        confidence: 0.8,
+        details: {
+          componentCount: Object.keys(window.experiences).length,
+          services: this.extractServicesFromExperiences()
+        }
+      });
+    }
+
     this.frameworks = frameworks;
   }
 
@@ -350,6 +378,41 @@ class WebsiteAnalyzer {
       if (window[indicator]) score += 0.4;
     });
     return Math.min(score, 1.0);
+  }
+
+  calculateModuleFederationConfidence() {
+    let score = 0;
+
+    // Check for webpack module federation
+    if (window.__webpack_require__) score += 0.4;
+    if (document.querySelector('script[src*="remoteEntry"]')) score += 0.3;
+
+    // Check for federated components in experiences
+    if (window.experiences) {
+      const federatedKeys = Object.keys(window.experiences).filter(key =>
+        key.includes('federated') || key.includes('multisitearchitecture')
+      );
+      if (federatedKeys.length > 0) score += 0.3;
+    }
+
+    return Math.min(score, 1.0);
+  }
+
+  extractServicesFromExperiences() {
+    if (!window.experiences) return [];
+
+    const services = new Set();
+    Object.values(window.experiences).forEach(exp => {
+      if (exp.metadata && typeof exp.metadata === 'object') {
+        Object.keys(exp.metadata).forEach(service => {
+          if (service !== 'true' && service !== 'false') {
+            services.add(service);
+          }
+        });
+      }
+    });
+
+    return Array.from(services);
   }
 
   identifyThirdPartyServices() {
@@ -812,6 +875,194 @@ class WebsiteAnalyzer {
 
     searchForEndpoints(data);
     return endpoints;
+  }
+
+  extractModuleFederationData() {
+    console.log('Extracting Module Federation and Component data...');
+    const mfData = {
+      hasModuleFederation: false,
+      hasComponentData: false,
+      windowDataObjects: {},
+      federatedComponents: [],
+      microfrontendServices: [],
+      componentDataStructure: null,
+      webpackFederationConfig: null,
+      remoteEntries: []
+    };
+
+    try {
+      // Look for webpack module federation patterns
+      if (window.__webpack_require__ || window.webpackChunkName ||
+          document.querySelector('script[src*="remoteEntry"]') ||
+          document.querySelector('script[src*="_next/static/chunks/webpack"]')) {
+        mfData.hasModuleFederation = true;
+        console.log('Detected webpack/module federation patterns');
+      }
+
+      // Extract window data objects that might contain component data
+      const windowDataKeys = [
+        'experiences', 'currentSite', 'siteMap', 'user', 'application',
+        'visitorExperiencesData', 'siteCapabilitiesData', 'localeStrings',
+        'currentApplication', 'environment', 'pipelineId'
+      ];
+
+      windowDataKeys.forEach(key => {
+        if (window[key] && typeof window[key] === 'object') {
+          mfData.windowDataObjects[key] = this.analyzeComponentData(window[key], key);
+          mfData.hasComponentData = true;
+        }
+      });
+
+      // Look for federated component patterns in window.experiences or similar structures
+      if (window.experiences && typeof window.experiences === 'object') {
+        const federatedExperiences = Object.keys(window.experiences).filter(key =>
+          key.includes('federated') || key.includes('multisitearchitecture')
+        );
+
+        federatedExperiences.forEach(expKey => {
+          const experience = window.experiences[expKey];
+          mfData.federatedComponents.push({
+            name: expKey,
+            isActive: experience.is_active,
+            metadata: experience.metadata || {},
+            offers: experience.active_offers || {}
+          });
+        });
+
+        // Identify microfrontend services based on metadata
+        const serviceTypes = new Set();
+        Object.values(window.experiences).forEach(exp => {
+          if (exp.metadata && typeof exp.metadata === 'object') {
+            Object.keys(exp.metadata).forEach(service => {
+              if (service !== 'true' && service !== 'false') {
+                serviceTypes.add(service);
+              }
+            });
+          }
+        });
+
+        mfData.microfrontendServices = Array.from(serviceTypes).map(service => ({
+          name: service,
+          experiencesUsingService: Object.keys(window.experiences).filter(expKey => {
+            const exp = window.experiences[expKey];
+            return exp.metadata && exp.metadata[service];
+          }).length
+        }));
+      }
+
+      // Look for remote module entries in script tags
+      const scripts = document.querySelectorAll('script[src]');
+      scripts.forEach(script => {
+        const src = script.src;
+        if (src.includes('remoteEntry') ||
+            src.includes('mf-') ||
+            src.includes('federation') ||
+            src.match(/\/[^\/]+\/(latest|v\d+)\/[^\/]+\.js$/)) {
+          mfData.remoteEntries.push({
+            url: src,
+            type: this.classifyRemoteEntry(src)
+          });
+        }
+      });
+
+      // Analyze overall component data structure
+      if (mfData.hasComponentData) {
+        mfData.componentDataStructure = this.analyzeOverallComponentStructure(mfData.windowDataObjects);
+      }
+
+    } catch (error) {
+      console.error('Error extracting Module Federation data:', error);
+    }
+
+    console.log('Extracted Module Federation data:', mfData);
+    return mfData;
+  }
+
+  analyzeComponentData(data, contextKey, depth = 0) {
+    if (depth > 2 || !data || typeof data !== 'object') return null;
+
+    const analysis = {
+      contextKey,
+      type: Array.isArray(data) ? 'array' : 'object',
+      keys: Array.isArray(data) ? [] : Object.keys(data),
+      size: Array.isArray(data) ? data.length : Object.keys(data).length,
+      hasMetadata: false,
+      services: [],
+      componentLikeStructures: []
+    };
+
+    if (!Array.isArray(data)) {
+      // Look for component-like structures
+      for (const [key, value] of Object.entries(data)) {
+        if (value && typeof value === 'object') {
+          // Check if this looks like a component configuration
+          if (value.is_active !== undefined ||
+              value.metadata !== undefined ||
+              value.active_offers !== undefined ||
+              value.component !== undefined) {
+            analysis.componentLikeStructures.push({
+              key,
+              hasActiveState: value.is_active !== undefined,
+              hasMetadata: value.metadata !== undefined,
+              hasOffers: value.active_offers !== undefined,
+              metadataKeys: value.metadata ? Object.keys(value.metadata) : []
+            });
+          }
+
+          // Extract service information from metadata
+          if (value.metadata && typeof value.metadata === 'object') {
+            analysis.hasMetadata = true;
+            Object.keys(value.metadata).forEach(service => {
+              if (!analysis.services.includes(service)) {
+                analysis.services.push(service);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    return analysis;
+  }
+
+  analyzeOverallComponentStructure(windowDataObjects) {
+    const structure = {
+      totalDataObjects: Object.keys(windowDataObjects).length,
+      componentsFound: 0,
+      servicesIdentified: new Set(),
+      architecturePatterns: []
+    };
+
+    Object.values(windowDataObjects).forEach(analysis => {
+      if (analysis && analysis.componentLikeStructures) {
+        structure.componentsFound += analysis.componentLikeStructures.length;
+      }
+      if (analysis && analysis.services) {
+        analysis.services.forEach(service => structure.servicesIdentified.add(service));
+      }
+    });
+
+    // Detect architecture patterns
+    if (structure.servicesIdentified.has('pulse')) {
+      structure.architecturePatterns.push('pulse-based-federation');
+    }
+    if (structure.servicesIdentified.has('cns') && structure.servicesIdentified.has('services')) {
+      structure.architecturePatterns.push('multi-service-architecture');
+    }
+    if (structure.componentsFound > 10) {
+      structure.architecturePatterns.push('extensive-component-system');
+    }
+
+    structure.servicesIdentified = Array.from(structure.servicesIdentified);
+    return structure;
+  }
+
+  classifyRemoteEntry(url) {
+    if (url.includes('remoteEntry')) return 'webpack-module-federation';
+    if (url.includes('mf-')) return 'microfrontend-entry';
+    if (url.includes('federation')) return 'federation-bundle';
+    if (url.match(/\/[^\/]+\/(latest|v\d+)\/[^\/]+\.js$/)) return 'versioned-remote-module';
+    return 'potential-remote-entry';
   }
 }
 
