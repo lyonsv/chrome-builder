@@ -61,15 +61,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Pending |
+| TRACK-03 | Phase 1 | Pending |
 | STYLE-01 | Phase 2 | Pending |
 | STYLE-02 | Phase 2 | Pending |
 | STYLE-03 | Phase 2 | Pending |
 | SCOPE-01 | Phase 3 | Pending |
 | SCOPE-02 | Phase 3 | Pending |
-| SCOPE-03 | Phase 4 | Pending |
-| TRACK-01 | Phase 4 | Pending |
+| SCOPE-03 | Phase 3 | Pending |
 | TRACK-02 | Phase 3 | Pending |
-| TRACK-03 | Phase 5 | Pending |
+| TRACK-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
@@ -78,4 +78,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation*
