@@ -1,3 +1,7 @@
+// fflate 0.8.2 — ZIP creation in service worker context
+// importScripts is supported in MV3 extension service workers (not web SWs)
+importScripts('/vendor/fflate.min.js');
+
 // Background service worker for Website Migration Analyzer
 
 class MigrationAnalyzer {
