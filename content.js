@@ -1,6 +1,83 @@
 // Content script for Website Migration Analyzer
 // Runs in the context of the web page to analyze DOM and discover assets
 
+// Chunked IPC transport constants — payloads > CHUNK_THRESHOLD are split into chunks
+const CHUNK_SIZE_DEFAULT = 512 * 1024;  // 512 KB default
+const CHUNK_SIZE_BACKOFF = [512 * 1024, 256 * 1024, 128 * 1024]; // backoff steps on ack timeout
+const MAX_RETRIES = 3;
+const ACK_TIMEOUT_MS = 5000;
+const CHUNK_THRESHOLD = 256 * 1024;  // Payloads > 256 KB use chunked transfer
+
+// Chunked sender — serializes payload and sends in chunks with per-chunk ack.
+// Routes through background (always-alive) to avoid the popup-not-ready race condition.
+async function sendChunked(action, payload, tabId) {
+  const json = JSON.stringify(payload);
+
+  // Small payloads use the direct path — no chunking needed
+  if (json.length < CHUNK_THRESHOLD) {
+    return chrome.runtime.sendMessage({ action, tabId, data: payload });
+  }
+
+  const transferId = crypto.randomUUID();
+  let chunkSize = CHUNK_SIZE_DEFAULT;
+  const totalChunks = Math.ceil(json.length / chunkSize);
+
+  // Notify background that a chunked transfer is starting
+  chrome.runtime.sendMessage({
+    action: 'TRANSFER_START',
+    transferId,
+    totalChunks,
+    originalAction: action,
+    tabId
+  });
+
+  for (let i = 0; i < totalChunks; i++) {
+    const chunk = json.slice(i * chunkSize, (i + 1) * chunkSize);
+    let attempt = 0;
+    let acked = false;
+
+    while (attempt < MAX_RETRIES && !acked) {
+      try {
+        const response = await Promise.race([
+          chrome.runtime.sendMessage({
+            action: 'CHUNK',
+            transferId,
+            chunkIndex: i,
+            totalChunks,
+            chunk,
+            tabId
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('ACK timeout')), ACK_TIMEOUT_MS)
+          )
+        ]);
+        if (response && response.ack) {
+          acked = true;
+        } else {
+          attempt++;
+        }
+      } catch (_) {
+        attempt++;
+        // Back off chunk size on timeout
+        if (attempt < MAX_RETRIES) {
+          chunkSize = CHUNK_SIZE_BACKOFF[Math.min(attempt, CHUNK_SIZE_BACKOFF.length - 1)];
+        }
+      }
+    }
+
+    if (!acked) {
+      chrome.runtime.sendMessage({
+        action: 'TRANSFER_FAILED',
+        transferId,
+        tabId,
+        failedChunk: i,
+        totalChunks
+      });
+      throw new Error(`Chunked transfer failed after ${MAX_RETRIES} retries on chunk ${i}/${totalChunks}`);
+    }
+  }
+}
+
 // Avoid multiple class declarations
 if (!window.WebsiteAnalyzer) {
 
@@ -1081,8 +1158,15 @@ if (!window.migrationAnalyzerLoaded) {
   // Listen for messages from background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'ANALYZE_WEBSITE') {
+      const tabId = message.tabId || sender.tab?.id;
       websiteAnalyzer.analyzeWebsite()
-        .then(result => sendResponse({ success: true, data: result }))
+        .then(result => {
+          // Route through background using chunked transport for large payloads —
+          // avoids the popup-not-ready race condition and Chrome IPC size limits.
+          return sendChunked('STORE_ANALYSIS', result, tabId)
+            .then(() => sendResponse({ success: true }))
+            .catch(err => sendResponse({ success: false, error: err.message }));
+        })
         .catch(error => sendResponse({ success: false, error: error.message }));
       return true; // Keep message channel open
     }
