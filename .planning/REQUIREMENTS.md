@@ -29,7 +29,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [ ] **TRACK-01**: Extension captures `dataLayer` push history and GTM event schema — what events fire, what properties they carry, and which user interactions trigger them
 - [ ] **TRACK-02**: Extension annotates the DOM tree with logical component boundaries (React fiber internals, `data-` attributes, BEM class patterns) to produce a named component hierarchy alongside the raw HTML
-- [ ] **TRACK-03**: All detection logic (framework detection, third-party services, module federation patterns, component architecture) is expressed as generic observable patterns with no hardcoded site names in the codebase
+- [x] **TRACK-03**: All detection logic (framework detection, third-party services, module federation patterns, component architecture) is expressed as generic observable patterns with no hardcoded site names in the codebase
 
 ## v2 Requirements
 
@@ -61,7 +61,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Pending |
 | INFRA-02 | Phase 1 | Pending |
 | INFRA-03 | Phase 1 | Pending |
-| TRACK-03 | Phase 1 | Pending |
+| TRACK-03 | Phase 1 | Complete |
 | STYLE-01 | Phase 2 | Pending |
 | STYLE-02 | Phase 2 | Pending |
 | STYLE-03 | Phase 2 | Pending |
