@@ -20,6 +20,7 @@ class MigrationAnalyzer {
     this.recentRequests = new Map(); // Rolling buffer of recent requests per tab
     this.analysisData = new Map();
     this.activeAnalysisTabs = new Set(); // Track which tabs are being analyzed
+    this.transfers = new Map(); // Map of transferId -> { chunks, totalChunks, received, originalAction, tabId }
     this.setupEventListeners();
   }
 
@@ -99,9 +100,85 @@ class MigrationAnalyzer {
 
   async handleMessage(message, sender, sendResponse) {
     const { action, data } = message;
-    const tabId = data?.tabId || sender.tab?.id;
+    const tabId = message.tabId || data?.tabId || sender.tab?.id;
 
     console.log(`Background script handling action: ${action}`, { tabId, data });
+
+    // Handle chunked transfer protocol — checked before the main switch to intercept
+    // chunk messages and reassemble them before dispatching as a normal message.
+    if (action === 'TRANSFER_START') {
+      const { transferId, totalChunks, originalAction } = message;
+      this.transfers.set(transferId, {
+        chunks: new Array(totalChunks),
+        totalChunks,
+        received: 0,
+        originalAction,
+        tabId
+      });
+      // Notify popup that transfer is starting
+      chrome.runtime.sendMessage({
+        action: 'TRANSFER_PROGRESS',
+        tabId,
+        received: 0,
+        total: totalChunks
+      }).catch(() => {}); // Popup may not be open
+      sendResponse({ ack: true });
+      return;
+    }
+
+    if (action === 'CHUNK') {
+      const { transferId, chunkIndex, totalChunks, chunk } = message;
+      const transfer = this.transfers.get(transferId);
+      if (!transfer) {
+        sendResponse({ ack: false });
+        return;
+      }
+      transfer.chunks[chunkIndex] = chunk;
+      transfer.received++;
+
+      // Notify popup of progress
+      chrome.runtime.sendMessage({
+        action: 'TRANSFER_PROGRESS',
+        tabId: transfer.tabId,
+        received: transfer.received,
+        total: totalChunks
+      }).catch(() => {});
+
+      sendResponse({ ack: true });
+
+      if (transfer.received === totalChunks) {
+        const fullJson = transfer.chunks.join('');
+        const payload = JSON.parse(fullJson);
+        const originalAction = transfer.originalAction;
+        const transferTabId = transfer.tabId;
+        this.transfers.delete(transferId);
+        // Dispatch as if it was a direct message with the original action
+        this.handleMessage(
+          { action: originalAction, tabId: transferTabId, data: payload },
+          sender,
+          () => {}
+        );
+        // Notify popup that transfer is done
+        chrome.runtime.sendMessage({
+          action: 'TRANSFER_COMPLETE',
+          tabId: transferTabId
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    if (action === 'TRANSFER_FAILED') {
+      const { transferId, failedChunk, totalChunks } = message;
+      this.transfers.delete(transferId);
+      chrome.runtime.sendMessage({
+        action: 'TRANSFER_ERROR',
+        tabId,
+        failedChunk,
+        totalChunks
+      }).catch(() => {});
+      sendResponse({ ack: true });
+      return;
+    }
 
     try {
       switch (action) {
