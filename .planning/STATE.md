@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-13T22:36:18.246Z"
+stopped_at: Completed 01-infrastructure-foundation 01-01-PLAN.md
+last_updated: "2026-03-13T22:54:45.980Z"
 last_activity: 2026-03-13 — Roadmap created, ready for Phase 1 planning
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 4
+  completed_plans: 2
   percent: 0
 ---
 
@@ -50,6 +50,8 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01-infrastructure-foundation P01 | 2min | 2 tasks | 5 files |
+| Phase 01-infrastructure-foundation P02 | 12 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -62,6 +64,8 @@ Recent decisions affecting current work:
 - Roadmap: Dedup repeated elements in computed styles — same-class siblings produce identical styles; collapse to one sample before crossing IPC boundary
 - Roadmap: Route asset downloads through background service worker — content scripts can't call `chrome.downloads`; background holds `<all_urls>` host permission
 - Roadmap: TRACK-03 assigned to Phase 1 — agnostic detection is infrastructure cleanup required before any feature ships
+- [Phase 01-infrastructure-foundation]: istocksource.html deleted (not renamed) — contained full iStock site content, no value as generic test fixture
+- [Phase 01-infrastructure-foundation]: Detection comments must describe observable signals only (global variable shape, count thresholds) — never site names
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T22:36:18.244Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-infrastructure-foundation/01-CONTEXT.md
+Last session: 2026-03-13T22:54:39.381Z
+Stopped at: Completed 01-infrastructure-foundation 01-01-PLAN.md
+Resume file: None
