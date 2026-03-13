@@ -1144,11 +1144,70 @@ function showResumeNotice(checkpoint) {
   document.body.insertBefore(notice, document.body.firstChild);
 }
 
+// Chunked transfer progress display — shown while background is reassembling chunks
+function updateTransferProgress(received, total) {
+  let bar = document.getElementById('transfer-progress');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'transfer-progress';
+    bar.style.cssText = 'padding:4px 10px;font-size:12px;color:#555;border-bottom:1px solid #eee;';
+    // Insert into existing status area — prepend to body so it's always visible
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+  bar.textContent = `Transferring data... ${received} / ${total} chunks`;
+}
+
+function clearTransferProgress() {
+  const bar = document.getElementById('transfer-progress');
+  if (bar) bar.remove();
+}
+
+function showTransferError(failedChunk, totalChunks) {
+  clearTransferProgress();
+  let errorDiv = document.getElementById('transfer-error');
+  if (!errorDiv) {
+    errorDiv = document.createElement('div');
+    errorDiv.id = 'transfer-error';
+    errorDiv.style.cssText = 'padding:8px 10px;background:#fff0f0;border:1px solid #fbb;font-size:12px;border-radius:4px;margin:4px;';
+  }
+  errorDiv.innerHTML = '';
+  const msg = document.createElement('span');
+  msg.textContent = `Transfer failed after 3 retries — the page may be too large. (chunk ${failedChunk + 1} of ${totalChunks})`;
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Retry Analysis';
+  retryBtn.style.cssText = 'margin-left:10px;padding:2px 8px;cursor:pointer;';
+  retryBtn.onclick = () => {
+    errorDiv.remove();
+    // Trigger a fresh analysis — send START_ANALYSIS to background
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.runtime.sendMessage({ action: 'START_ANALYSIS', tabId: tabs[0].id });
+      }
+    });
+  };
+  errorDiv.appendChild(msg);
+  errorDiv.appendChild(retryBtn);
+  document.body.insertBefore(errorDiv, document.body.firstChild);
+}
+
 // Handle messages from background service worker
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === 'ANALYSIS_RESUMED') {
     // Show a brief dismissable notice — append to existing status area
     showResumeNotice(message.checkpoint);
+    return;
+  }
+  if (message.action === 'TRANSFER_PROGRESS') {
+    updateTransferProgress(message.received, message.total);
+    return;
+  }
+  if (message.action === 'TRANSFER_COMPLETE') {
+    clearTransferProgress();
+    return;
+  }
+  if (message.action === 'TRANSFER_ERROR') {
+    showTransferError(message.failedChunk, message.totalChunks);
+    return;
   }
 });
 
