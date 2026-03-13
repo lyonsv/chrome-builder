@@ -404,6 +404,15 @@ class MigrationAnalyzer {
     const analysisData = this.analysisData.get(tabId);
     Object.assign(analysisData, data);
 
+    // Determine stage from data keys and save a checkpoint
+    let stage = 'dom-capture';
+    if (data.networkRequests && data.networkRequests.length > 0) {
+      stage = 'network-capture';
+    } else if (data.frameworks !== undefined || data.assets !== undefined) {
+      stage = 'dom-capture';
+    }
+    this.saveCheckpoint(tabId, stage).catch(err => console.warn('[checkpoint] save failed:', err));
+
     // Store in chrome.storage for persistence (with size limits to avoid quota)
     try {
       // Create a smaller version for storage to avoid quota issues
@@ -460,6 +469,7 @@ class MigrationAnalyzer {
       saveAs: true
     });
 
+    await this.clearCheckpoint(tabId);
     console.log('Analysis package downloaded successfully');
   }
 
@@ -475,9 +485,38 @@ class MigrationAnalyzer {
     });
   }
 
+  async saveCheckpoint(tabId, stage) {
+    // Store ONLY stage name and minimal resume metadata — NOT the full payload
+    // chrome.storage.session quota is 10 MB shared; full payloads would exhaust it
+    const analysisData = this.analysisData.get(tabId);
+    const key = `checkpoint_${tabId}`;
+    await chrome.storage.session.set({
+      [key]: {
+        stage,
+        tabId,
+        url: analysisData ? analysisData.url : null,
+        title: analysisData ? analysisData.title : null,
+        ts: Date.now()
+      }
+    });
+    console.log(`[checkpoint] saved stage="${stage}" for tab ${tabId}`);
+  }
+
+  async clearCheckpoint(tabId) {
+    await chrome.storage.session.remove(`checkpoint_${tabId}`);
+    console.log(`[checkpoint] cleared for tab ${tabId}`);
+  }
+
+  async loadCheckpoint(tabId) {
+    const key = `checkpoint_${tabId}`;
+    const result = await chrome.storage.session.get(key);
+    return result[key] || null;
+  }
+
   // Cleanup when tab is closed or navigation occurs
   async cleanup(tabId) {
     this.stopKeepAlive(tabId);
+    await this.clearCheckpoint(tabId);
 
     try {
       await chrome.debugger.detach({ tabId });
@@ -491,10 +530,37 @@ class MigrationAnalyzer {
   }
 }
 
+// SW startup recovery scan — checks for resumable analysis sessions
+async function checkForActiveAnalysis() {
+  const all = await chrome.storage.session.get(null);
+  const checkpointKeys = Object.keys(all).filter(k => k.startsWith('checkpoint_'));
+  for (const key of checkpointKeys) {
+    const cp = all[key];
+    const ageMs = Date.now() - cp.ts;
+    if (ageMs < 30 * 60 * 1000) {
+      // Recent checkpoint — notify popup to show resume notice
+      console.log(`[checkpoint] resumable checkpoint found: stage="${cp.stage}" url="${cp.url}"`);
+      // Attempt to notify popup; popup may not be open yet — that's fine, it will check on open
+      try {
+        chrome.runtime.sendMessage({ action: 'ANALYSIS_RESUMED', checkpoint: cp });
+      } catch (_) {
+        // Popup not open — popup.js checks for checkpoint on its own DOMContentLoaded
+      }
+    } else {
+      // Stale checkpoint — clean up silently
+      await chrome.storage.session.remove(key);
+      console.log(`[checkpoint] stale checkpoint removed: ${key}`);
+    }
+  }
+}
+
 // Initialize the analyzer
 console.log('Migration Analyzer service worker starting...');
 const analyzer = new MigrationAnalyzer();
 console.log('Migration Analyzer initialized and ready');
+
+// Run on every SW wake — checks for resumable analysis sessions
+checkForActiveAnalysis().catch(err => console.warn('[checkpoint] startup scan failed:', err));
 
 // Handle tab closing
 chrome.tabs.onRemoved.addListener((tabId) => {
