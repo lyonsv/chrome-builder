@@ -1129,6 +1129,29 @@ class PopupController {
   }
 }
 
+// Show a dismissable resume notice when the SW detects a resumable checkpoint
+function showResumeNotice(checkpoint) {
+  const notice = document.createElement('div');
+  notice.id = 'resume-notice';
+  notice.style.cssText = 'background:#f0f4ff;border:1px solid #99b;padding:6px 10px;font-size:12px;margin-bottom:6px;border-radius:4px;';
+  notice.textContent = `Analysis resumed from checkpoint (${checkpoint.stage}).`;
+  const dismiss = document.createElement('button');
+  dismiss.textContent = '×';
+  dismiss.style.cssText = 'margin-left:8px;cursor:pointer;border:none;background:none;font-size:14px;';
+  dismiss.onclick = () => notice.remove();
+  notice.appendChild(dismiss);
+  // Insert at top of body or before the first child of popup container
+  document.body.insertBefore(notice, document.body.firstChild);
+}
+
+// Handle messages from background service worker
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === 'ANALYSIS_RESUMED') {
+    // Show a brief dismissable notice — append to existing status area
+    showResumeNotice(message.checkpoint);
+  }
+});
+
 // Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   new PopupController();
