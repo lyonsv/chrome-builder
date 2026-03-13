@@ -10,7 +10,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 ### Infrastructure
 
 - [x] **INFRA-01**: Extension maintains analysis session across service worker dormancy events without data loss (long-lived port or `storage.session` flush)
-- [ ] **INFRA-02**: Large payloads (computed styles) are transported from content script to popup/background via chunked streaming rather than a single `sendMessage` call, staying under the ~5–10MB IPC limit
+- [x] **INFRA-02**: Large payloads (computed styles) are transported from content script to popup/background via chunked streaming rather than a single `sendMessage` call, staying under the ~5–10MB IPC limit
 - [x] **INFRA-03**: Output directory is packaged as a single ZIP download (using a pure-JS library, no build system) rather than one OS dialog per file
 
 ### Style Capture
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | TRACK-03 | Phase 1 | Complete |
 | STYLE-01 | Phase 2 | Pending |
