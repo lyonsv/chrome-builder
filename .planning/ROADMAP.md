@@ -87,5 +87,5 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Foundation | 4/4 | Complete   | 2026-03-13 |
 | 2. Style Capture | 0/2 | Not started | - |
-| 3. Scoped Output and Assets | 0/4 | Not started | - |
+| 3. Scoped Output and Assets | 1/4 | In Progress|  |
 | 4. Tracking Plan | 0/TBD | Not started | - |
