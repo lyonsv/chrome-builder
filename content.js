@@ -792,13 +792,17 @@ class WebsiteAnalyzer {
   }
 
   async fetchAssetContent(url) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (response.ok) {
         return await response.text();
       }
     } catch (error) {
       console.log(`Failed to fetch ${url}:`, error.message);
+    } finally {
+      clearTimeout(timeout);
     }
     return null;
   }
