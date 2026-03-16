@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-16T21:10:34.086Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-16T21:16:16.235Z"
 last_activity: 2026-03-13 — Completed plan 01-02 (SW keep-alive and session checkpoints)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 8
   percent: 50
 ---
 
@@ -55,6 +55,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-infrastructure-foundation P03 | 2 | 2 tasks | 2 files |
 | Phase 01-infrastructure-foundation P04 | 2 | 2 tasks | 3 files |
 | Phase 03-scoped-output-and-assets P01 | 4 | 2 tasks | 7 files |
+| Phase 03-scoped-output-and-assets P02 | 20 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,10 @@ Recent decisions affecting current work:
 - [Phase 01-infrastructure-foundation]: CHUNK_THRESHOLD at 256 KB — payloads under threshold use direct sendMessage path with no chunking overhead
 - [Phase 03-scoped-output-and-assets]: Used setupFilesAfterEnv instead of setupFiles — beforeEach requires jest globals to be initialized first
 - [Phase 03-scoped-output-and-assets]: test.todo() stubs serve as executable specification documents — plans 02-04 convert them to real tests
+- [Phase 03-scoped-output-and-assets]: Picker overlay uses inset:0 fixed div at z-index 2147483647 with pointer-events toggle to hit real elements via elementFromPoint
+- [Phase 03-scoped-output-and-assets]: CSS selector generation is id-first (#id) then tag+dot-classes — no nth-child complexity for Phase 3 scope targeting
+- [Phase 03-scoped-output-and-assets]: outerHTML truncated to 500 chars in ELEMENT_SELECTED message to stay within Chrome IPC size limits
+- [Phase 03-scoped-output-and-assets]: updateUI() restores scope-aware label after analysis completes — prevents 'Start Analysis' stomping 'Analyze Selected Element'
 
 ### Pending Todos
 
@@ -91,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T21:10:34.083Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-03-16T21:16:16.233Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
