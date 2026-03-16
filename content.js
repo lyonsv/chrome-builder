@@ -305,8 +305,10 @@ class WebsiteAnalyzer {
   }
 
   extractBackgroundImages() {
+    const deadline = Date.now() + 2000; // 2s budget — getComputedStyle on every element is expensive
     const elementsWithBg = document.querySelectorAll('*');
-    elementsWithBg.forEach(el => {
+    for (const el of elementsWithBg) {
+      if (Date.now() > deadline) break;
       const style = window.getComputedStyle(el);
       const bgImage = style.backgroundImage;
 
@@ -319,7 +321,7 @@ class WebsiteAnalyzer {
           });
         }
       }
-    });
+    }
   }
 
   extractFonts() {
@@ -1261,8 +1263,13 @@ class WebsiteAnalyzer {
       return selectorCache.get(selector);
     };
 
+    const deadline = Date.now() + 4000; // 4s budget for stylesheet walk
+    let timedOut = false;
+
     const walkRules = (rules) => {
+      if (timedOut) return;
       for (const rule of rules) {
+        if (Date.now() > deadline) { timedOut = true; return; }
         if (rule instanceof CSSStyleRule) {
           // 1. Pseudo-class state extraction
           for (const pseudo of PSEUDO_CLASSES) {
@@ -1304,6 +1311,7 @@ class WebsiteAnalyzer {
     };
 
     for (const sheet of document.styleSheets) {
+      if (timedOut) break;
       try {
         walkRules(sheet.cssRules || []);
       } catch (_) {
@@ -1354,13 +1362,18 @@ class WebsiteAnalyzer {
   extractComputedStyles() {
     const globals = this._buildGlobalSection();
     const seen = new Map(); // signature -> entry
+    const domDeadline = Date.now() + 5000; // 5s budget for DOM walk
 
     for (const el of document.querySelectorAll('*')) {
+      // Always count occurrences even after budget is exhausted
       const sig = this.buildSignature(el);
       if (seen.has(sig)) {
         seen.get(sig).occurrences++;
         continue;
       }
+
+      // Stop capturing new signatures once budget is spent
+      if (Date.now() > domDeadline) continue;
 
       const computed = window.getComputedStyle(el);
       const styles = {};
