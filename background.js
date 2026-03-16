@@ -14,6 +14,29 @@ function uint8ArrayToBase64(bytes) {
   return btoa(binary);
 }
 
+function extractFilename(url) {
+  try {
+    const pathname = new URL(url).pathname;
+    const segments = pathname.split('/');
+    const last = segments[segments.length - 1];
+    return last || 'asset';
+  } catch (_) {
+    return 'asset';
+  }
+}
+
+function resolveFilename(filename, seen) {
+  if (!seen.has(filename)) {
+    seen.set(filename, 0);
+    return filename;
+  }
+  let counter = seen.get(filename) + 1;
+  seen.set(filename, counter);
+  const dotIdx = filename.lastIndexOf('.');
+  if (dotIdx === -1) return filename + '-' + counter;
+  return filename.slice(0, dotIdx) + '-' + counter + filename.slice(dotIdx);
+}
+
 class MigrationAnalyzer {
   constructor() {
     this.networkRequests = new Map(); // Store all requests for all tabs
@@ -219,6 +242,21 @@ class MigrationAnalyzer {
           sendResponse({ success: true });
           break;
 
+        case 'FETCH_ASSETS': {
+          const assetUrls = data?.urls || [];
+          console.log(`Fetching ${assetUrls.length} assets for tab ${tabId}`);
+          const assetResult = await this.fetchAssets(assetUrls);
+          console.log(`Fetched ${assetResult.successes.length} assets, ${assetResult.failures.length} failed`);
+          // Store asset results on the analysis data for use by downloadAsZip
+          const existingAnalysis = this.analysisData.get(tabId);
+          if (existingAnalysis) {
+            existingAnalysis.fetchedAssets = assetResult.successes;
+            existingAnalysis.failedAssets = assetResult.failures;
+          }
+          sendResponse({ success: true, fetched: assetResult.successes.length, failed: assetResult.failures.length });
+          break;
+        }
+
         case 'STOP_ANALYSIS':
           console.log(`Stopping analysis for tab ${tabId}`);
           this.stopAnalysis(tabId);
@@ -301,16 +339,7 @@ class MigrationAnalyzer {
       // Continue without tab info
     }
 
-    // Enable network monitoring for this specific tab (optional)
-    try {
-      await chrome.debugger.attach({ tabId }, '1.3');
-      await chrome.debugger.sendCommand({ tabId }, 'Network.enable');
-      await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable');
-      console.log('Debugger attached successfully');
-    } catch (error) {
-      console.log('Debugger attachment failed, continuing with basic analysis:', error.message);
-      // Continue without debugger - basic analysis will still work
-    }
+    // Network data is captured via webRequest listeners — no CDP debugger needed
 
     console.log('Analysis session initialized for tab:', tabId);
     return analysisData;
@@ -531,23 +560,81 @@ class MigrationAnalyzer {
     console.log('Analysis stored successfully');
   }
 
+  /**
+   * Fetch binary assets via SW context (bypasses CORS via <all_urls> host permission).
+   * @param {string[]} urls - Array of absolute URLs to fetch
+   * @returns {Promise<{ successes: Array<{url, filename, data}>, failures: Array<{url, reason}> }>}
+   */
+  async fetchAssets(urls) {
+    const TIMEOUT_MS = 10000;
+    const seenFilenames = new Map();
+    const successes = [];
+    const failures = [];
+
+    // Fetch all URLs in parallel
+    const results = await Promise.allSettled(
+      urls.map(async (url) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timer);
+          if (!response.ok) {
+            return { url, error: `HTTP ${response.status}` };
+          }
+          const buffer = await response.arrayBuffer();
+          const data = new Uint8Array(buffer);
+          const rawFilename = extractFilename(url);
+          const filename = resolveFilename(rawFilename, seenFilenames);
+          return { url, filename, data };
+        } catch (err) {
+          clearTimeout(timer);
+          return { url, error: err.name === 'AbortError' ? 'timeout' : err.message };
+        }
+      })
+    );
+
+    for (const result of results) {
+      const value = result.status === 'fulfilled' ? result.value : { url: 'unknown', error: result.reason?.message || 'unknown error' };
+      if (value.data) {
+        successes.push(value);
+      } else {
+        failures.push({ url: value.url, reason: value.error });
+      }
+    }
+
+    return { successes, failures };
+  }
+
   async downloadAsZip(tabId, packageData) {
     const analysisData = this.analysisData.get(tabId) || {};
     const networkData = this.getNetworkData(tabId);
+
+    // Fetch assets if URL list is present and not already fetched
+    if (analysisData.assetUrls && analysisData.assetUrls.length > 0 && !analysisData.fetchedAssets) {
+      const assetResult = await this.fetchAssets(analysisData.assetUrls);
+      analysisData.fetchedAssets = assetResult.successes;
+      analysisData.failedAssets = assetResult.failures;
+    }
+
+    const fetchedAssets = analysisData.fetchedAssets || [];
+    const failedAssets = analysisData.failedAssets || [];
 
     // Build index.json — manifest + summary for the ZIP root
     const indexData = {
       url: analysisData.url || packageData.url,
       title: analysisData.title || packageData.title,
       capturedAt: new Date().toISOString(),
+      scope: analysisData.scopeMetadata || { mode: 'full-page', selector: null, outerHtml: null, childCount: 0 },
       stages: {
-        html: false,        // Phase 3
-        css: false,         // Phase 2
-        computedStyles: !!(analysisData.computedStyles), // Phase 2
-        assets: false,      // Phase 3
+        html: !!(analysisData.scopedHtml),
+        css: false,
+        computedStyles: !!(analysisData.computedStyles),
+        assets: fetchedAssets.length > 0,
         network: networkData && networkData.length > 0,
-        tracking: false     // Phase 4
+        tracking: false
       },
+      failedAssets: failedAssets,
       ...packageData
     };
 
@@ -563,7 +650,33 @@ class MigrationAnalyzer {
       'tracking/':         {},
     };
 
-    // Populate what Phase 1 has: network requests
+    // Phase 3: HTML — scoped outerHTML or full-page
+    if (analysisData.scopedHtml) {
+      fileTree['html/'] = {
+        'index.html': fflate.strToU8(analysisData.scopedHtml)
+      };
+    }
+
+    // Phase 3: Component hierarchy
+    if (analysisData.componentHierarchy) {
+      if (!fileTree['html/'] || typeof fileTree['html/'] !== 'object' || !fileTree['html/']['index.html']) {
+        fileTree['html/'] = {};
+      }
+      fileTree['html/']['component-hierarchy.json'] = fflate.strToU8(
+        JSON.stringify(analysisData.componentHierarchy, null, 2)
+      );
+    }
+
+    // Phase 3: Binary assets
+    if (fetchedAssets.length > 0) {
+      const assetsDir = {};
+      for (const asset of fetchedAssets) {
+        assetsDir[asset.filename] = asset.data; // Uint8Array — NOT strToU8
+      }
+      fileTree['assets/'] = assetsDir;
+    }
+
+    // Network data
     if (networkData && networkData.length > 0) {
       fileTree['network/'] = {
         'requests.json': fflate.strToU8(JSON.stringify(networkData, null, 2))
@@ -599,7 +712,7 @@ class MigrationAnalyzer {
     });
 
     await this.clearCheckpoint(tabId);
-    console.log(`[ZIP] Downloaded analysis-${domain}-${timestamp}.zip`);
+    console.log(`[ZIP] Downloaded analysis-${domain}-${timestamp}.zip (${fetchedAssets.length} assets, ${failedAssets.length} failed)`);
   }
 
   startKeepAlive(tabId) {
@@ -646,13 +759,6 @@ class MigrationAnalyzer {
   async cleanup(tabId) {
     this.stopKeepAlive(tabId);
     await this.clearCheckpoint(tabId);
-
-    try {
-      await chrome.debugger.detach({ tabId });
-    } catch (error) {
-      // Ignore errors - debugger might already be detached
-    }
-
     this.networkRequests.delete(tabId);
     this.recentRequests.delete(tabId);
     this.analysisData.delete(tabId);

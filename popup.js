@@ -921,18 +921,32 @@ class PopupController {
   }
 
   async downloadPackage() {
-    if (!this.analysisData) return;
+    if (!this.currentTab || !this.analysisData) return;
+
+    this.updateStatus('analyzing', 'Downloading assets...');
+    this.downloadPackageBtn.disabled = true;
 
     try {
-      this.updateStatus('analyzing', 'Preparing download...');
+      // Fetch binary assets via background SW before ZIP assembly
+      if (this.analysisData.assetUrls && this.analysisData.assetUrls.length > 0) {
+        await this.sendMessage('FETCH_ASSETS', {
+          urls: this.analysisData.assetUrls,
+          tabId: this.currentTab.id
+        });
+      }
+
+      // Now download the ZIP
       await this.sendMessage('DOWNLOAD_PACKAGE', {
         tabId: this.currentTab.id,
         ...this.analysisData
       });
-      this.updateStatus('ready', 'Package downloaded successfully');
+
+      this.updateStatus('ready', 'Package downloaded!');
     } catch (error) {
-      console.error('Download failed:', error);
-      this.updateStatus('error', `Download failed: ${error.message}`);
+      console.error('Download error:', error);
+      this.updateStatus('error', 'Download failed: ' + error.message);
+    } finally {
+      this.downloadPackageBtn.disabled = false;
     }
   }
 
