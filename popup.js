@@ -5,6 +5,8 @@ class PopupController {
     this.currentTab = null;
     this.analysisData = null;
     this.isAnalyzing = false;
+    this.selectedElement = null; // { selector, outerHtml, childCount } or null for full-page
+    this.isPickerActive = false;
 
     this.initializeElements();
     this.setupEventListeners();
@@ -20,22 +22,22 @@ class PopupController {
     this.urlText = document.getElementById('urlText');
 
     // Options
-    this.includeAssets = document.getElementById('includeAssets');
     this.captureNetwork = document.getElementById('captureNetwork');
     this.reloadPage = document.getElementById('reloadPage');
-    this.triggerNavigation = document.getElementById('triggerNavigation');
     this.takeScreenshot = document.getElementById('takeScreenshot');
-    this.auditServices = document.getElementById('auditServices');
-    this.detectFramework = document.getElementById('detectFramework');
 
     // Buttons
     this.startAnalysisBtn = document.getElementById('startAnalysis');
     this.downloadPackageBtn = document.getElementById('downloadPackage');
     this.startAnalysisText = document.getElementById('startAnalysisText');
     this.startAnalysisSpinner = document.getElementById('startAnalysisSpinner');
-    this.testMinimalBtn = document.getElementById('testMinimal');
-    this.debugStatusBtn = document.getElementById('debugStatus');
-    this.showRequestsBtn = document.getElementById('showRequests');
+    // Picker elements
+    this.pickElementBtn = document.getElementById('pickElement');
+    this.pickElementText = document.getElementById('pickElementText');
+    this.selectionSummary = document.getElementById('selectionSummary');
+    this.selectionSelector = document.getElementById('selectionSelector');
+    this.selectionChildCount = document.getElementById('selectionChildCount');
+    this.clearSelectionBtn = document.getElementById('clearSelection');
 
     // Results
     this.resultsSection = document.getElementById('resultsSection');
@@ -60,10 +62,34 @@ class PopupController {
     this.startAnalysisBtn.addEventListener('click', () => this.startAnalysis());
     this.downloadPackageBtn.addEventListener('click', () => this.downloadPackage());
 
-    // Add minimal test button
-    document.getElementById('testMinimal').addEventListener('click', () => this.testMinimal());
-    document.getElementById('debugStatus').addEventListener('click', () => this.debugStatus());
-    document.getElementById('showRequests').addEventListener('click', () => this.showAllRequests());
+    this.pickElementBtn.addEventListener('click', () => this.pickElement());
+    this.clearSelectionBtn.addEventListener('click', () => this.clearSelection());
+
+    // Listen for picker messages from content page
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.action === 'ELEMENT_SELECTED') {
+        this.onElementSelected(message);
+      } else if (message.action === 'PICKER_CANCELLED') {
+        this.onPickerCancelled();
+      }
+    });
+
+    // Cleanup picker on popup unload
+    window.addEventListener('beforeunload', () => {
+      if (this.isPickerActive && this.currentTab) {
+        chrome.scripting.executeScript({
+          target: { tabId: this.currentTab.id },
+          func: () => {
+            const overlay = document.getElementById('__gsd_picker__');
+            const highlight = document.getElementById('__gsd_highlight__');
+            const label = document.getElementById('__gsd_picker_label__');
+            if (overlay) overlay.remove();
+            if (highlight) highlight.remove();
+            if (label) label.remove();
+          }
+        }).catch(() => {});
+      }
+    });
 
     // Help link
     document.getElementById('helpLink').addEventListener('click', (e) => {
@@ -103,14 +129,17 @@ class PopupController {
     try {
       // Get analysis options
       const options = {
-        includeAssets: this.includeAssets.checked,
         captureNetwork: this.captureNetwork.checked,
         reloadPage: this.reloadPage.checked,
-        triggerNavigation: this.triggerNavigation.checked,
-        takeScreenshot: this.takeScreenshot.checked,
-        auditServices: this.auditServices.checked,
-        detectFramework: this.detectFramework.checked
+        takeScreenshot: this.takeScreenshot.checked
       };
+
+      // Add scope data if element is selected
+      if (this.selectedElement) {
+        options.scopeSelector = this.selectedElement.selector;
+        options.scopeOuterHtml = this.selectedElement.outerHtml;
+        options.scopeChildCount = this.selectedElement.childCount;
+      }
 
       // Start analysis
       this.updateStatus('analyzing', 'Starting analysis...');
@@ -222,15 +251,15 @@ class PopupController {
       // Wait a moment for the script to initialize
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Now try to send message — 60s timeout guards against content script hangs
+      // Now try to send message — 30s timeout guards against content script hangs
       return new Promise((resolve, reject) => {
         let settled = false;
         const timeout = setTimeout(() => {
           if (settled) return;
           settled = true;
-          console.warn('Content script analysis timed out after 60s, using fallback');
+          console.warn('Content script analysis timed out after 30s, using fallback');
           this.performFallbackAnalysis().then(resolve).catch(reject);
-        }, 60000);
+        }, 30000);
 
         chrome.tabs.sendMessage(this.currentTab.id, { action: 'ANALYZE_WEBSITE' }, (response) => {
           if (settled) return;
@@ -907,13 +936,14 @@ class PopupController {
     // Toggle button states
     this.startAnalysisBtn.disabled = analyzing;
     this.downloadPackageBtn.disabled = analyzing || !this.analysisData;
+    this.pickElementBtn.disabled = analyzing;
 
     // Toggle spinner
     if (analyzing) {
       this.startAnalysisText.textContent = 'Analyzing...';
       this.startAnalysisSpinner.style.display = 'inline-block';
     } else {
-      this.startAnalysisText.textContent = 'Start Analysis';
+      this.startAnalysisText.textContent = this.selectedElement ? 'Analyze Selected Element' : 'Start Analysis';
       this.startAnalysisSpinner.style.display = 'none';
     }
 
@@ -936,11 +966,22 @@ class PopupController {
     this.progressText.textContent = message;
   }
 
-  async sendMessage(action, data = null) {
+  async sendMessage(action, data = null, timeoutMs = 15000) {
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        console.error(`sendMessage timeout after ${timeoutMs}ms for action: ${action}`);
+        reject(new Error(`Timeout waiting for response to ${action}`));
+      }, timeoutMs);
+
       try {
         console.log(`Sending message: ${action}`, data);
         chrome.runtime.sendMessage({ action, data }, (response) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
           if (chrome.runtime.lastError) {
             console.error(`Runtime error for ${action}:`, chrome.runtime.lastError.message);
             reject(new Error(`Runtime error: ${chrome.runtime.lastError.message}`));
@@ -956,6 +997,9 @@ class PopupController {
           }
         });
       } catch (error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         console.error(`Exception sending message ${action}:`, error);
         reject(error);
       }
@@ -1003,132 +1047,181 @@ class PopupController {
     }
   }
 
-  async debugStatus() {
-    console.log('Running debug status check...');
+  async pickElement() {
+    if (this.isAnalyzing || !this.currentTab) return;
+
+    this.isPickerActive = true;
+    this.pickElementBtn.classList.add('active');
+    this.pickElementText.textContent = 'Picking\u2026 (Esc to cancel)';
+    this.pickElementBtn.disabled = true;
+    this.startAnalysisBtn.disabled = true;
+
     try {
-      const response = await this.sendMessage('DEBUG_STATUS', { tabId: this.currentTab.id });
-      console.log('Debug Status Response:', response);
-      const currentTabId = this.currentTab ? this.currentTab.id : 'unknown';
-      const hasRequestsForCurrentTab = response.data.allTabsWithRequests.includes(currentTabId);
+      await chrome.scripting.executeScript({
+        target: { tabId: this.currentTab.id },
+        func: () => {
+          // Entire function is self-contained — no outer scope references
+          if (document.getElementById('__gsd_picker__')) return;
 
-      alert(`Debug Status:\n\nCurrent Tab ID: ${currentTabId}\nService Worker: ${response.data.serviceWorkerRunning}\nwebRequest API: ${response.data.webRequestAPIAvailable}\nActive Analysis Tabs: ${response.data.activeAnalysisTabs.join(', ')}\nTotal Requests: ${response.data.totalRequestsAcrossAllTabs}\nTabs with Requests: ${response.data.allTabsWithRequests.join(', ')}\n\nCURRENT TAB HAS REQUESTS: ${hasRequestsForCurrentTab}\nCURRENT TAB REQUEST COUNT: ${response.data.currentTabRequestCount}\n\nSample URLs from current tab:\n${response.data.sampleRequestsFromCurrentTab.map(r => `${r.method} ${r.url}`).join('\n')}`);
-    } catch (error) {
-      console.error('Debug status failed:', error);
-      alert(`Debug Status Failed: ${error.message}`);
-    }
-  }
+          const overlay = document.createElement('div');
+          overlay.id = '__gsd_picker__';
+          Object.assign(overlay.style, {
+            position: 'fixed', inset: '0',
+            zIndex: '2147483647',
+            cursor: 'crosshair',
+            background: 'transparent'
+          });
 
-  async showAllRequests() {
-    console.log('Showing all network requests...');
-    try {
-      const response = await this.sendMessage('GET_NETWORK_DATA', { tabId: this.currentTab.id });
-      console.log('All Requests Response:', response);
+          const highlight = document.createElement('div');
+          highlight.id = '__gsd_highlight__';
+          Object.assign(highlight.style, {
+            position: 'fixed',
+            pointerEvents: 'none',
+            outline: '2px solid #2196f3',
+            zIndex: '2147483647',
+            display: 'none'
+          });
 
-      if (response.success && response.data && response.data.length > 0) {
-        const requests = response.data;
-        const graphqlRequests = requests.filter(r => r.isGraphQL);
-        const postRequests = requests.filter(r => r.method === 'POST');
+          const label = document.createElement('div');
+          label.id = '__gsd_picker_label__';
+          Object.assign(label.style, {
+            position: 'fixed',
+            pointerEvents: 'none',
+            zIndex: '2147483647',
+            background: '#2196f3',
+            color: 'white',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap',
+            display: 'none'
+          });
 
-        let output = `Network Requests (${requests.length} total):\n\n`;
-        output += `GraphQL Requests: ${graphqlRequests.length}\n`;
-        output += `POST Requests: ${postRequests.length}\n\n`;
+          document.body.appendChild(highlight);
+          document.body.appendChild(label);
+          document.body.appendChild(overlay);
 
-        output += "Recent Requests:\n";
-        requests.slice(-10).forEach((req, i) => {
-          output += `${i+1}. ${req.method} ${req.url}\n`;
-          if (req.isGraphQL) output += "   ^^ GraphQL ^^";
-        });
+          let currentTarget = null;
 
-        if (graphqlRequests.length > 0) {
-          output += "\n\nGraphQL Queries Found:\n";
-          graphqlRequests.slice(0, 3).forEach((req, i) => {
-            output += `${i+1}. ${req.url}\n`;
-            if (req.graphQLQuery && req.graphQLQuery.query) {
-              output += `   Query: ${req.graphQLQuery.query.substring(0, 100)}...\n`;
+          function cleanup() {
+            overlay.remove();
+            highlight.remove();
+            label.remove();
+            document.removeEventListener('keydown', onKeydown, true);
+          }
+
+          function onKeydown(e) {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              cleanup();
+              chrome.runtime.sendMessage({ action: 'PICKER_CANCELLED' });
+            }
+          }
+
+          overlay.addEventListener('mousemove', (e) => {
+            overlay.style.pointerEvents = 'none';
+            currentTarget = document.elementFromPoint(e.clientX, e.clientY);
+            overlay.style.pointerEvents = '';
+
+            if (currentTarget && currentTarget !== overlay && currentTarget !== highlight && currentTarget !== label) {
+              const rect = currentTarget.getBoundingClientRect();
+              Object.assign(highlight.style, {
+                top: rect.top + 'px',
+                left: rect.left + 'px',
+                width: rect.width + 'px',
+                height: rect.height + 'px',
+                display: 'block'
+              });
+
+              const tag = currentTarget.tagName.toLowerCase();
+              const cls = currentTarget.className && typeof currentTarget.className === 'string'
+                ? '.' + currentTarget.className.trim().split(/\s+/)[0] : '';
+              label.textContent = tag + cls;
+              Object.assign(label.style, {
+                top: Math.max(0, rect.top - 22) + 'px',
+                left: rect.left + 'px',
+                display: 'block'
+              });
             }
           });
-        }
 
-        console.log('All requests:', requests);
-        alert(output);
-      } else {
-        alert('No requests found for current tab');
-      }
-    } catch (error) {
-      console.error('Show requests failed:', error);
-      alert(`Show Requests Failed: ${error.message}`);
+          overlay.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!currentTarget || currentTarget === overlay || currentTarget === highlight || currentTarget === label) return;
+
+            const tag = currentTarget.tagName.toLowerCase();
+            const cls = currentTarget.className && typeof currentTarget.className === 'string'
+              ? '.' + currentTarget.className.trim().split(/\s+/).join('.') : '';
+            const selector = currentTarget.id ? '#' + currentTarget.id : tag + cls;
+
+            chrome.runtime.sendMessage({
+              action: 'ELEMENT_SELECTED',
+              selector: selector,
+              outerHtml: currentTarget.outerHTML.slice(0, 500),
+              childCount: currentTarget.children.length
+            });
+
+            cleanup();
+          });
+
+          document.addEventListener('keydown', onKeydown, true);
+        }
+      });
+    } catch (err) {
+      this.updateStatus('error', 'Could not activate picker \u2014 try refreshing the page');
+      this.onPickerCancelled();
     }
   }
 
-  async testMinimal() {
-    console.log('Running minimal test to isolate quota issue');
+  onElementSelected(data) {
+    this.isPickerActive = false;
+    this.selectedElement = {
+      selector: data.selector,
+      outerHtml: data.outerHtml,
+      childCount: data.childCount
+    };
 
-    this.updateStatus('analyzing', 'Running minimal test...');
+    // Update picker button to "Re-pick" state
+    this.pickElementBtn.classList.remove('active');
+    this.pickElementBtn.disabled = false;
+    this.pickElementText.textContent = 'Re-pick Element';
+    this.startAnalysisBtn.disabled = false;
 
-    try {
-      // Test 1: Basic tab info (should always work)
-      console.log('Test 1: Basic tab access');
-      const basicInfo = {
-        url: this.currentTab.url,
-        title: this.currentTab.title,
-        id: this.currentTab.id
-      };
-      console.log('✓ Basic tab info:', basicInfo);
+    // Show selection summary
+    this.selectionSummary.style.display = '';
+    this.selectionSelector.textContent = data.selector;
+    this.selectionChildCount.textContent = data.childCount;
 
-      // Test 2: Very simple DOM inspection
-      console.log('Test 2: Simple DOM inspection');
-      const domTest = await chrome.scripting.executeScript({
-        target: { tabId: this.currentTab.id },
-        func: () => ({
-          title: document.title,
-          scriptCount: document.querySelectorAll('script').length,
-          url: window.location.href
-        })
-      });
-      console.log('✓ DOM inspection:', domTest[0]?.result);
+    // Update status and analysis button
+    this.updateStatus('ready', 'Scoped: ' + data.selector);
+    this.startAnalysisText.textContent = 'Analyze Selected Element';
+  }
 
-      // Test 3: Background script communication (this might be where quota error occurs)
-      console.log('Test 3: Background script communication');
-      const networkTest = await this.sendMessage('GET_NETWORK_DATA');
-      console.log('✓ Network data:', networkTest);
+  onPickerCancelled() {
+    this.isPickerActive = false;
+    this.pickElementBtn.classList.remove('active');
+    this.pickElementBtn.disabled = false;
+    this.startAnalysisBtn.disabled = false;
 
-      // Test 4: Try to start minimal analysis session
-      console.log('Test 4: Start analysis session');
-      const analysisTest = await this.sendMessage('START_ANALYSIS', {
-        tabId: this.currentTab.id,
-        minimal: true
-      });
-      console.log('✓ Analysis session:', analysisTest);
+    // Restore button text based on whether element was previously selected
+    this.pickElementText.textContent = this.selectedElement ? 'Re-pick Element' : 'Pick Element';
+  }
 
-      // If we get here, show minimal results
-      this.analysisData = {
-        url: this.currentTab.url,
-        title: this.currentTab.title,
-        assets: {
-          html: [{ url: this.currentTab.url, type: 'text/html' }],
-          css: [], js: [], images: [], fonts: [], other: []
-        },
-        frameworks: [],
-        thirdPartyServices: [],
-        metadata: { title: this.currentTab.title },
-        analysisMode: 'minimal-test',
-        timestamp: new Date().toISOString()
-      };
+  clearSelection() {
+    this.selectedElement = null;
 
-      this.displayResults();
-      this.updateStatus('ready', 'Minimal test completed');
-      console.log('✓ All tests passed - quota error is elsewhere');
+    // Hide selection summary
+    this.selectionSummary.style.display = 'none';
+    this.selectionSelector.textContent = '';
+    this.selectionChildCount.textContent = '';
 
-    } catch (error) {
-      console.error('❌ Minimal test failed:', error);
-      this.updateStatus('error', `Minimal test failed: ${error.message}`);
-
-      // Try to identify which test failed
-      if (error.message.includes('quota') || error.message.includes('Quota')) {
-        console.error('❌ QUOTA ERROR FOUND in minimal test');
-        console.error('This suggests the issue is in:', error.stack);
-      }
-    }
+    // Restore button text
+    this.pickElementText.textContent = 'Pick Element';
+    this.startAnalysisText.textContent = 'Start Analysis';
+    this.updateStatus('ready', 'Ready to analyze');
   }
 
   showHelp() {
