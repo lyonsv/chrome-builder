@@ -42,6 +42,9 @@ const PSEUDO_ELEMENT_PROPERTIES = [
   'transform', 'z-index'
 ];
 
+// BEM block name extraction — matches block, block__element, block--modifier, block__element--modifier
+const BEM_BLOCK_RE = /^([a-z][a-z0-9-]*)(?:__[a-z0-9-]+)?(?:--[a-z0-9-]+)?$/;
+
 // Chunked IPC transport constants — payloads > CHUNK_THRESHOLD are split into chunks
 const CHUNK_SIZE_DEFAULT = 512 * 1024;  // 512 KB default
 const CHUNK_SIZE_BACKOFF = [512 * 1024, 256 * 1024, 128 * 1024]; // backoff steps on ack timeout
@@ -1405,6 +1408,125 @@ class WebsiteAnalyzer {
       elements: Object.fromEntries(seen),
       crossOriginStylesheets: crossOriginUrls
     };
+  }
+
+  // --- Component Hierarchy Detection (TRACK-02) ---
+
+  _getReactComponentName(el) {
+    const fiberKey = Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+    if (!fiberKey) return null;
+    let fiber = el[fiberKey];
+    let hops = 0;
+    while (fiber && hops < 20) {
+      const type = fiber.type;
+      if (typeof type === 'function' && (type.displayName || type.name)) {
+        return type.displayName || type.name;
+      }
+      fiber = fiber.return;
+      hops++;
+    }
+    return null;
+  }
+
+  _getVueComponentName(el) {
+    if (el.__vueParentComponent) {
+      const type = el.__vueParentComponent.type;
+      return type?.name || type?.__name || null;
+    }
+    if (el.__vue__) {
+      return el.__vue__.$options?.name || null;
+    }
+    return null;
+  }
+
+  _getAngularComponentName(el) {
+    if (window.ng?.getComponent) {
+      const instance = window.ng.getComponent(el);
+      if (instance) return instance.constructor?.name || null;
+    }
+    if (el.__ngContext__) {
+      return el.__ngContext__?.constructor?.name || null;
+    }
+    return null;
+  }
+
+  _getDataAttrComponentName(el) {
+    return el.dataset?.component
+      || el.dataset?.block
+      || el.dataset?.module
+      || el.dataset?.testid
+      || null;
+  }
+
+  _getBemComponentName(el) {
+    for (const cls of el.classList) {
+      const m = cls.match(BEM_BLOCK_RE);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  _getGeneratedName(el) {
+    const tag = el.tagName.toLowerCase();
+    const cls = el.className && typeof el.className === 'string'
+      ? '.' + el.className.trim().split(/\s+/)[0]
+      : '';
+    return tag + cls;
+  }
+
+  _getCssSelector(el) {
+    if (el.id) return '#' + el.id;
+    const tag = el.tagName.toLowerCase();
+    const cls = el.className && typeof el.className === 'string'
+      ? '.' + el.className.trim().split(/\s+/).join('.')
+      : '';
+    return tag + cls;
+  }
+
+  _detectComponentName(el) {
+    // Priority order: react > vue > angular > data-attr > bem > generated
+    let name;
+
+    name = this._getReactComponentName(el);
+    if (name) return { name, source: 'react' };
+
+    name = this._getVueComponentName(el);
+    if (name) return { name, source: 'vue' };
+
+    name = this._getAngularComponentName(el);
+    if (name) return { name, source: 'angular' };
+
+    name = this._getDataAttrComponentName(el);
+    if (name) return { name, source: 'data-attr' };
+
+    name = this._getBemComponentName(el);
+    if (name) return { name, source: 'bem' };
+
+    // Generated fallback — always fires, never null
+    return { name: this._getGeneratedName(el), source: 'generated' };
+  }
+
+  /**
+   * Build component hierarchy tree for a DOM subtree.
+   * @param {Element} rootElement - Root element to scan (scoped element or document.documentElement)
+   * @returns {Object} Tree of { name, source, selector, children: [] } nodes
+   */
+  buildComponentHierarchy(rootElement) {
+    const root = rootElement || document.documentElement;
+    const { name, source } = this._detectComponentName(root);
+
+    const node = {
+      name,
+      source,
+      selector: this._getCssSelector(root),
+      children: []
+    };
+
+    for (const child of root.children) {
+      node.children.push(this.buildComponentHierarchy(child));
+    }
+
+    return node;
   }
 }
 
