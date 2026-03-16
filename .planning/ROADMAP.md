@@ -59,7 +59,13 @@ Plans:
   2. The downloaded ZIP contains a structured directory: `index.json` at the root plus `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking` subdirectories — not a single flat JSON blob
   3. Image, font, and icon files are present as actual binary files in `/assets/` — not just URL references — and were fetched through the background service worker to bypass CORS
   4. The component hierarchy output annotates DOM elements with logical component names derived from React fiber internals, Vue bindings, Angular metadata, or `data-` attribute patterns — making nesting structure legible to an LLM without manual annotation
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Jest test infrastructure and test stubs for all Phase 3 requirements (SCOPE-01, SCOPE-02, SCOPE-03, TRACK-02)
+- [ ] 03-02-PLAN.md — Element picker UX: popup button, injected overlay, selection summary (SCOPE-01)
+- [ ] 03-03-PLAN.md — Component hierarchy detection: React, Vue, Angular, data-attr, BEM (TRACK-02)
+- [ ] 03-04-PLAN.md — Scoped capture, binary asset download, and structured ZIP output (SCOPE-01, SCOPE-02, SCOPE-03)
 
 ### Phase 4: Tracking Plan
 **Goal**: Users can export a complete tracking plan alongside the visual capture — what events fire, what properties they carry, and which interactions trigger them — so analytics instrumentation can be reproduced without manual reverse-engineering
@@ -81,5 +87,5 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Foundation | 4/4 | Complete   | 2026-03-13 |
 | 2. Style Capture | 0/2 | Not started | - |
-| 3. Scoped Output and Assets | 0/TBD | Not started | - |
+| 3. Scoped Output and Assets | 0/4 | Not started | - |
 | 4. Tracking Plan | 0/TBD | Not started | - |
