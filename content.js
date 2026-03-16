@@ -141,11 +141,14 @@ class WebsiteAnalyzer {
   }
 
   // Main analysis function called by popup/background
-  async analyzeWebsite() {
-    console.log('Starting website analysis...');
+  async analyzeWebsite(scopeSelector = null) {
+    console.log('Starting website analysis...', scopeSelector ? `scoped to: ${scopeSelector}` : 'full-page');
 
     try {
-      // Analyze in parallel for better performance
+      // Determine scope root
+      const scopeRoot = scopeSelector ? document.querySelector(scopeSelector) : null;
+
+      // Full-page analysis runs in parallel (existing behavior)
       await Promise.all([
         this.extractHTMLContent(),
         this.discoverAssets(),
@@ -161,8 +164,48 @@ class WebsiteAnalyzer {
       // Extract module federation and component data (synchronous)
       const moduleFederationData = this.extractModuleFederationData();
 
-      // Extract computed styles (CPU-bound synchronous — called after parallel I/O block)
-      const computedStyles = this.extractComputedStyles();
+      // Scoped capture — when element is selected
+      let scopedHtml = null;
+      let componentHierarchy = null;
+      let assetUrls = [];
+      let scopeMetadata = null;
+
+      if (scopeRoot) {
+        // Scoped HTML
+        scopedHtml = scopeRoot.outerHTML;
+
+        // Component hierarchy for the scoped subtree
+        componentHierarchy = this.buildComponentHierarchy(scopeRoot);
+
+        // Collect asset URLs from scoped subtree
+        assetUrls = this.collectAssetUrls(scopeRoot);
+
+        // Scope metadata for index.json
+        scopeMetadata = {
+          mode: 'element',
+          selector: scopeSelector,
+          outerHtml: scopeRoot.outerHTML.slice(0, 500),
+          childCount: scopeRoot.children.length
+        };
+      } else {
+        // Full-page component hierarchy
+        componentHierarchy = this.buildComponentHierarchy(document.documentElement);
+
+        // Collect asset URLs from full page
+        assetUrls = this.collectAssetUrls(document.documentElement);
+
+        scopeMetadata = {
+          mode: 'full-page',
+          selector: null,
+          outerHtml: null,
+          childCount: document.documentElement.children.length
+        };
+      }
+
+      // Extract computed styles — scoped when element selected
+      const computedStyles = scopeRoot
+        ? this.extractScopedComputedStyles(scopeRoot)
+        : this.extractComputedStyles();
 
       return {
         url: window.location.href,
@@ -174,6 +217,10 @@ class WebsiteAnalyzer {
         moduleFederationData: moduleFederationData,
         metadata: this.metadata,
         computedStyles: computedStyles,
+        scopedHtml: scopedHtml,
+        componentHierarchy: componentHierarchy,
+        assetUrls: assetUrls,
+        scopeMetadata: scopeMetadata,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
@@ -1410,6 +1457,132 @@ class WebsiteAnalyzer {
     };
   }
 
+  /**
+   * Extract computed styles scoped to a subtree. Unlike extractComputedStyles(),
+   * does NOT subtract global baseline — scoped output must be self-contained.
+   */
+  extractScopedComputedStyles(rootElement) {
+    const globals = this._buildGlobalSection();
+    const seen = new Map();
+    const deadline = Date.now() + 5000;
+
+    const elements = [rootElement, ...rootElement.querySelectorAll('*')];
+    for (const el of elements) {
+      const sig = this.buildSignature(el);
+      if (seen.has(sig)) {
+        seen.get(sig).occurrences++;
+        continue;
+      }
+      if (Date.now() > deadline) continue;
+
+      const computed = window.getComputedStyle(el);
+      const styles = {};
+      for (const prop of DESIGN_SYSTEM_PROPERTIES) {
+        styles[prop] = computed.getPropertyValue(prop).trim();
+      }
+
+      const pseudos = this._extractPseudoStyles(el);
+      const entry = {
+        styles,
+        states: {},
+        occurrences: 1,
+        exampleHtml: el.outerHTML.slice(0, 500),
+        full: true  // Flag: all properties included, no baseline subtraction
+      };
+      if (pseudos !== undefined) entry.pseudos = pseudos;
+      seen.set(sig, entry);
+    }
+
+    // Still run stylesheet walk for pseudo-class states and tokens
+    const { pseudoMap, crossOriginUrls, tokenUsage, scopedTokens } = this._extractStylesheetData();
+    for (const [sig, entry] of seen) {
+      entry.states = pseudoMap[sig] || {};
+    }
+    globals.tokens = this._buildTokenVocabulary(tokenUsage, scopedTokens);
+
+    return {
+      globals,
+      elements: Object.fromEntries(seen),
+      crossOriginStylesheets: crossOriginUrls
+    };
+  }
+
+  /**
+   * Collect unique asset URLs (images, fonts, background-images) from a DOM subtree.
+   * Returns array of absolute URL strings for the background SW to fetch.
+   */
+  collectAssetUrls(rootElement) {
+    const urls = new Set();
+
+    // 1. <img> src URLs within subtree
+    const images = rootElement.querySelectorAll('img[src]');
+    for (const img of images) {
+      if (img.src && !img.src.startsWith('data:')) {
+        urls.add(img.src);
+      }
+      // srcset images
+      if (img.srcset) {
+        const srcsetUrls = img.srcset.split(',').map(s => s.trim().split(' ')[0]).filter(u => u && !u.startsWith('data:'));
+        for (const u of srcsetUrls) {
+          try { urls.add(new URL(u, window.location.href).href); } catch(_) {}
+        }
+      }
+    }
+
+    // Also check picture > source[srcset] within subtree
+    const sources = rootElement.querySelectorAll('picture source[srcset]');
+    for (const source of sources) {
+      if (source.srcset) {
+        const srcsetUrls = source.srcset.split(',').map(s => s.trim().split(' ')[0]).filter(u => u && !u.startsWith('data:'));
+        for (const u of srcsetUrls) {
+          try { urls.add(new URL(u, window.location.href).href); } catch(_) {}
+        }
+      }
+    }
+
+    // 2. Background-image URLs from computed styles of subtree elements
+    const allElements = [rootElement, ...rootElement.querySelectorAll('*')];
+    const bgDeadline = Date.now() + 2000;
+    for (const el of allElements) {
+      if (Date.now() > bgDeadline) break;
+      const bgImage = window.getComputedStyle(el).backgroundImage;
+      if (bgImage && bgImage !== 'none') {
+        const bgUrls = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/g);
+        if (bgUrls) {
+          for (const urlMatch of bgUrls) {
+            const extracted = urlMatch.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+            if (extracted && extracted[1] && !extracted[1].startsWith('data:')) {
+              try { urls.add(new URL(extracted[1], window.location.href).href); } catch(_) {}
+            }
+          }
+        }
+      }
+    }
+
+    // 3. @font-face source URLs from stylesheets (page-level, but scoped components need their fonts)
+    try {
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of (sheet.cssRules || [])) {
+            if (rule.type === CSSRule.FONT_FACE_RULE && rule.style.src) {
+              const fontUrls = rule.style.src.match(/url\(['"]?([^'")\s]+)['"]?\)/g);
+              if (fontUrls) {
+                for (const urlMatch of fontUrls) {
+                  const extracted = urlMatch.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+                  if (extracted && extracted[1] && !extracted[1].startsWith('data:')) {
+                    try { urls.add(new URL(extracted[1], window.location.href).href); } catch(_) {}
+                  }
+                }
+              }
+            }
+          }
+        } catch(_) { /* cross-origin stylesheet */ }
+      }
+    } catch(_) {}
+
+    return Array.from(urls);
+  }
+
   // --- Component Hierarchy Detection (TRACK-02) ---
 
   _getReactComponentName(el) {
@@ -1546,7 +1719,8 @@ if (!window.migrationAnalyzerLoaded) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'ANALYZE_WEBSITE') {
       const tabId = message.tabId || sender.tab?.id;
-      websiteAnalyzer.analyzeWebsite()
+      const scopeSelector = message.scopeSelector || null;
+      websiteAnalyzer.analyzeWebsite(scopeSelector)
         .then(result => {
           // Route through background using chunked transport for large payloads —
           // avoids the popup-not-ready race condition and Chrome IPC size limits.
