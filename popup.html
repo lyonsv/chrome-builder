@@ -25,55 +25,48 @@
       <strong>Current:</strong> <span id="urlText">Loading...</span>
     </div>
 
+    <!-- Selection Summary (hidden until element picked) -->
+    <div class="selection-summary" id="selectionSummary" style="display: none;">
+      <div class="selection-summary-row">
+        <span class="selection-indicator"></span>
+        <code class="selection-selector" id="selectionSelector"></code>
+      </div>
+      <div class="selection-summary-row">
+        <span class="selection-label">Children:</span>
+        <span class="selection-value" id="selectionChildCount"></span>
+      </div>
+      <div class="selection-summary-row selection-summary-clear">
+        <button id="clearSelection" class="btn-clear-selection">&times; Clear</button>
+      </div>
+    </div>
+
     <!-- Analysis Options -->
     <div class="section">
       <h3>Analysis Options</h3>
       <div class="options">
         <label class="checkbox-label">
-          <input type="checkbox" id="includeAssets" checked>
-          <span>Download Assets (HTML, CSS, JS, Images)</span>
-        </label>
-        <label class="checkbox-label">
           <input type="checkbox" id="captureNetwork" checked>
           <span>Capture Network Requests</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" id="reloadPage" checked>
-          <span>Reload Page to Capture Initial Requests (Recommended for SSR sites)</span>
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="triggerNavigation">
-          <span>Trigger Navigation to Capture Client-Side Requests (Next.js)</span>
+          <input type="checkbox" id="reloadPage">
+          <span>Reload Page (for SSR sites that need fresh network capture)</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="takeScreenshot" checked>
           <span>Take Screenshot</span>
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="auditServices" checked>
-          <span>Audit Third-Party Services</span>
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="detectFramework" checked>
-          <span>Detect Frameworks</span>
         </label>
       </div>
     </div>
 
     <!-- Actions -->
     <div class="section">
+      <button id="pickElement" class="btn btn-pick-element">
+        <span id="pickElementText">Pick Element</span>
+      </button>
       <button id="startAnalysis" class="btn btn-primary">
         <span id="startAnalysisText">Start Analysis</span>
         <div id="startAnalysisSpinner" class="spinner" style="display: none;"></div>
-      </button>
-      <button id="testMinimal" class="btn" style="background: #ff9800;">
-        Test Minimal
-      </button>
-      <button id="debugStatus" class="btn" style="background: #9c27b0;">
-        Debug Status
-      </button>
-      <button id="showRequests" class="btn" style="background: #607d8b;">
-        Show All Requests
       </button>
       <button id="downloadPackage" class="btn btn-secondary" disabled>
         Download Package
