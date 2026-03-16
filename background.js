@@ -543,7 +543,7 @@ class MigrationAnalyzer {
       stages: {
         html: false,        // Phase 3
         css: false,         // Phase 2
-        computedStyles: false, // Phase 2
+        computedStyles: !!(analysisData.computedStyles), // Phase 2
         assets: false,      // Phase 3
         network: networkData && networkData.length > 0,
         tracking: false     // Phase 4
@@ -567,6 +567,15 @@ class MigrationAnalyzer {
     if (networkData && networkData.length > 0) {
       fileTree['network/'] = {
         'requests.json': fflate.strToU8(JSON.stringify(networkData, null, 2))
+      };
+    }
+
+    // Phase 2: computed styles — write into pre-scaffolded computed-styles/ subdir
+    if (analysisData.computedStyles) {
+      fileTree['computed-styles/'] = {
+        'computed-styles.json': fflate.strToU8(
+          JSON.stringify(analysisData.computedStyles, null, 2)
+        )
       };
     }
 
