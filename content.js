@@ -1230,22 +1230,42 @@ class WebsiteAnalyzer {
     };
   }
 
-  // Extract pseudo-class rule deltas (:hover, :focus, etc.) by walking stylesheets
-  _extractPseudoClassRules() {
+  // Single stylesheet walk: pseudo-class states + token scoped definitions + token usage.
+  // Combining into one pass avoids iterating potentially thousands of rules 2–3 times.
+  // querySelectorAll is cached by baseSelector — Bootstrap-style sheets reuse selectors
+  // across multiple pseudo-class rules (.btn:hover, .btn:focus, etc.).
+  // Token usedBy stores CSS selector strings (not element signatures) — eliminates
+  // querySelectorAll calls entirely for token vocabulary (was the biggest bottleneck).
+  _extractStylesheetData() {
     const PSEUDO_CLASSES = [':hover', ':focus', ':focus-visible', ':active', ':disabled'];
     const pseudoMap = {};
     const crossOriginUrls = [];
+    const tokenUsage = {};   // tokenName -> Set<selectorText>
+    const scopedTokens = {}; // propName -> { scopedAt, value }
+
+    // Cache querySelectorAll results by base selector — avoids re-querying the same
+    // selector for multiple pseudo-class rules (e.g. .btn:hover + .btn:focus + .btn:active)
+    const selectorCache = new Map();
+    const queryWithCache = (selector) => {
+      if (!selectorCache.has(selector)) {
+        try {
+          selectorCache.set(selector, Array.from(document.querySelectorAll(selector)));
+        } catch (_) {
+          selectorCache.set(selector, []);
+        }
+      }
+      return selectorCache.get(selector);
+    };
 
     const walkRules = (rules) => {
       for (const rule of rules) {
         if (rule instanceof CSSStyleRule) {
+          // 1. Pseudo-class state extraction
           for (const pseudo of PSEUDO_CLASSES) {
             if (rule.selectorText.endsWith(pseudo)) {
               const baseSelector = rule.selectorText.slice(0, -pseudo.length).trim();
-              if (!baseSelector) continue;
-              try {
-                const matches = document.querySelectorAll(baseSelector);
-                for (const el of matches) {
+              if (baseSelector) {
+                for (const el of queryWithCache(baseSelector)) {
                   const sig = this.buildSignature(el);
                   if (!pseudoMap[sig]) pseudoMap[sig] = {};
                   if (!pseudoMap[sig][pseudo]) pseudoMap[sig][pseudo] = {};
@@ -1254,11 +1274,28 @@ class WebsiteAnalyzer {
                     pseudoMap[sig][pseudo][prop] = rule.style.getPropertyValue(prop).trim();
                   }
                 }
-              } catch (_) { /* invalid selector after strip — skip */ }
+              }
+            }
+          }
+
+          // 2. Scoped custom prop definitions + var() usage — single property loop
+          for (let i = 0; i < rule.style.length; i++) {
+            const prop = rule.style[i];
+            const val = rule.style.getPropertyValue(prop);
+
+            if (prop.startsWith('--') && rule.selectorText !== ':root') {
+              scopedTokens[prop] = { scopedAt: rule.selectorText, value: val.trim() };
+            }
+
+            const match = val.match(/var\((--[^,)]+)/);
+            if (match) {
+              const tokenName = match[1].trim();
+              if (!tokenUsage[tokenName]) tokenUsage[tokenName] = new Set();
+              tokenUsage[tokenName].add(rule.selectorText);
             }
           }
         }
-        if (rule.cssRules) walkRules(rule.cssRules); // recurse @media/@supports/@layer
+        if (rule.cssRules) walkRules(rule.cssRules);
       }
     };
 
@@ -1270,14 +1307,15 @@ class WebsiteAnalyzer {
       }
     }
 
-    return { pseudoMap, crossOriginUrls };
+    return { pseudoMap, crossOriginUrls, tokenUsage, scopedTokens };
   }
 
-  // Build CSS custom property token vocabulary grouped by naming pattern
-  _buildTokenVocabulary() {
+  // Build CSS custom property token vocabulary grouped by naming pattern.
+  // Receives pre-computed data from _extractStylesheetData() — no DOM queries here.
+  _buildTokenVocabulary(tokenUsage, scopedTokens) {
     const tokens = {};
 
-    // Step 1: Read all :root custom properties from computed style
+    // Read :root custom properties from computed style
     const rootStyle = window.getComputedStyle(document.documentElement);
     for (let i = 0; i < rootStyle.length; i++) {
       const prop = rootStyle[i];
@@ -1285,56 +1323,19 @@ class WebsiteAnalyzer {
         tokens[prop] = {
           value: rootStyle.getPropertyValue(prop).trim(),
           definedAt: ':root',
-          usedBy: []
+          usedBy: Array.from(tokenUsage[prop] || [])
         };
       }
     }
 
-    // Step 2: Scan stylesheet rules for scoped custom property definitions and var() usage
-    for (const sheet of document.styleSheets) {
-      try {
-        const walkForTokens = (rules) => {
-          for (const rule of rules) {
-            if (rule instanceof CSSStyleRule) {
-              // Scoped custom property definitions
-              for (let i = 0; i < rule.style.length; i++) {
-                const prop = rule.style[i];
-                if (prop.startsWith('--') && rule.selectorText !== ':root') {
-                  if (!tokens[prop]) tokens[prop] = { usedBy: [] };
-                  tokens[prop].scopedAt = rule.selectorText;
-                  tokens[prop].value = rule.style.getPropertyValue(prop).trim();
-                }
-              }
-
-              // var() usage — find which token names are referenced
-              for (let i = 0; i < rule.style.length; i++) {
-                const prop = rule.style[i];
-                const val = rule.style.getPropertyValue(prop);
-                const match = val.match(/var\((--[^,)]+)/);
-                if (match) {
-                  const tokenName = match[1].trim();
-                  if (tokens[tokenName]) {
-                    try {
-                      const matches = document.querySelectorAll(rule.selectorText);
-                      for (const el of matches) {
-                        const sig = this.buildSignature(el);
-                        if (!tokens[tokenName].usedBy.includes(sig)) {
-                          tokens[tokenName].usedBy.push(sig);
-                        }
-                      }
-                    } catch (_) { /* invalid selector — skip */ }
-                  }
-                }
-              }
-            }
-            if (rule.cssRules) walkForTokens(rule.cssRules);
-          }
-        };
-        walkForTokens(sheet.cssRules || []);
-      } catch (_) { /* cross-origin */ }
+    // Merge scoped custom property definitions collected during stylesheet walk
+    for (const [prop, { scopedAt, value }] of Object.entries(scopedTokens)) {
+      if (!tokens[prop]) tokens[prop] = { usedBy: Array.from(tokenUsage[prop] || []) };
+      tokens[prop].scopedAt = scopedAt;
+      tokens[prop].value = value;
     }
 
-    // Step 3: Group by naming pattern
+    // Group by naming pattern
     const grouped = { color: {}, spacing: {}, font: {}, other: {} };
     for (const [name, data] of Object.entries(tokens)) {
       if (name.startsWith('--color-')) grouped.color[name] = data;
@@ -1375,18 +1376,19 @@ class WebsiteAnalyzer {
       seen.set(sig, entry);
     }
 
-    // Merge pseudo-class state deltas and token vocabulary
-    const pseudoClassResult = this._extractPseudoClassRules();
+    // Single stylesheet walk for both pseudo-class states and token vocabulary
+    const { pseudoMap, crossOriginUrls, tokenUsage, scopedTokens } = this._extractStylesheetData();
+
     for (const [sig, entry] of seen) {
-      entry.states = pseudoClassResult.pseudoMap[sig] || {};
+      entry.states = pseudoMap[sig] || {};
     }
 
-    globals.tokens = this._buildTokenVocabulary();
+    globals.tokens = this._buildTokenVocabulary(tokenUsage, scopedTokens);
 
     return {
       globals,
       elements: Object.fromEntries(seen),
-      crossOriginStylesheets: pseudoClassResult.crossOriginUrls
+      crossOriginStylesheets: crossOriginUrls
     };
   }
 }
