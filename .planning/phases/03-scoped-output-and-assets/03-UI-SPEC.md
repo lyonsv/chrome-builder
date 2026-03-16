@@ -55,9 +55,11 @@ Source: existing `css/popup.css` spacing values extracted and normalized to the 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px | 400 (regular) | 1.4 |
-| Label | 12px | 500 (medium) | 1.3 |
+| Label | 12px | 400 (regular) | 1.3 |
 | Heading (h3) | 16px | 600 (semibold) | 1.3 |
 | Display (h1) | 18px | 600 (semibold) | 1.2 |
+
+Two weights only: `400 (regular)` for body and label text; `600 (semibold)` for headings and display. Body vs label distinction is made by size (14px vs 12px), not weight.
 
 Source: `css/popup.css` — `body` (14px/1.4), `.current-url` (12px), `.section h3` (16px/600), `.header h1` (18px/600). No new type sizes introduced in Phase 3.
 
