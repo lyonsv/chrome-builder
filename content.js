@@ -200,15 +200,13 @@ class WebsiteAnalyzer {
   }
 
   async discoverAssets() {
-    // CSS files
+    // CSS files — fetched in parallel so N files cost 5s total, not N×5s
     const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
-    for (const link of cssLinks) {
-      await this.addAsset('css', link.href, {
-        element: 'link',
-        media: link.media || 'all',
-        crossorigin: link.crossOrigin
-      });
-    }
+    await Promise.all([...cssLinks].map(link => this.addAsset('css', link.href, {
+      element: 'link',
+      media: link.media || 'all',
+      crossorigin: link.crossOrigin
+    })));
 
     // Inline CSS
     const styleElements = document.querySelectorAll('style');
