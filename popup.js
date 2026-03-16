@@ -261,7 +261,11 @@ class PopupController {
           this.performFallbackAnalysis().then(resolve).catch(reject);
         }, 30000);
 
-        chrome.tabs.sendMessage(this.currentTab.id, { action: 'ANALYZE_WEBSITE' }, (response) => {
+        chrome.tabs.sendMessage(this.currentTab.id, {
+          action: 'ANALYZE_WEBSITE',
+          tabId: this.currentTab.id,
+          scopeSelector: this.selectedElement ? this.selectedElement.selector : null
+        }, (response) => {
           if (settled) return;
           settled = true;
           clearTimeout(timeout);
