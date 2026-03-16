@@ -1,0 +1,23 @@
+{
+  "name": "chrome-builder",
+  "version": "1.0.0",
+  "description": "A comprehensive Chrome extension for analyzing websites to support framework migrations. Captures assets, network traffic, SSR data structures, and third-party services to provide developers with complete migration context.",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyonsv/chrome-builder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lyonsv/chrome-builder/issues"
+  },
+  "homepage": "https://github.com/lyonsv/chrome-builder#readme",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
