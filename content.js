@@ -1,6 +1,47 @@
 // Content script for Website Migration Analyzer
 // Runs in the context of the web page to analyze DOM and discover assets
 
+// Design-system-relevant CSS properties captured per element (~62 properties)
+const DESIGN_SYSTEM_PROPERTIES = [
+  // Typography
+  'font-family', 'font-size', 'font-weight', 'font-style', 'font-variant',
+  'line-height', 'letter-spacing', 'text-transform', 'text-decoration',
+  'text-align', 'color', 'white-space', 'word-break',
+
+  // Spacing & Layout
+  'display', 'box-sizing',
+  'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+  'gap', 'column-gap', 'row-gap', 'overflow', 'overflow-x', 'overflow-y',
+
+  // Flexbox / Grid
+  'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis',
+  'justify-content', 'align-items', 'align-self',
+  'grid-template-columns', 'grid-template-rows',
+
+  // Visual Decoration
+  'background-color', 'background-image',
+  'border-top', 'border-right', 'border-bottom', 'border-left',
+  'border-radius', 'box-shadow', 'outline',
+  'opacity', 'visibility',
+
+  // Positioning
+  'position', 'top', 'right', 'bottom', 'left', 'z-index',
+  'cursor', 'pointer-events',
+
+  // Transitions & Animation
+  'transition', 'transform', 'animation'
+];
+
+// CSS properties captured for ::before and ::after pseudo-elements
+const PSEUDO_ELEMENT_PROPERTIES = [
+  'content', 'display', 'position', 'top', 'right', 'bottom', 'left',
+  'width', 'height', 'color', 'background-color', 'font-family', 'font-size',
+  'font-weight', 'border', 'border-radius', 'opacity', 'visibility',
+  'transform', 'z-index'
+];
+
 // Chunked IPC transport constants — payloads > CHUNK_THRESHOLD are split into chunks
 const CHUNK_SIZE_DEFAULT = 512 * 1024;  // 512 KB default
 const CHUNK_SIZE_BACKOFF = [512 * 1024, 256 * 1024, 128 * 1024]; // backoff steps on ack timeout
@@ -117,6 +158,9 @@ class WebsiteAnalyzer {
       // Extract module federation and component data (synchronous)
       const moduleFederationData = this.extractModuleFederationData();
 
+      // Extract computed styles (CPU-bound synchronous — called after parallel I/O block)
+      const computedStyles = this.extractComputedStyles();
+
       return {
         url: window.location.href,
         title: document.title,
@@ -126,6 +170,7 @@ class WebsiteAnalyzer {
         nextJsData: nextJsData,
         moduleFederationData: moduleFederationData,
         metadata: this.metadata,
+        computedStyles: computedStyles,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
@@ -1140,6 +1185,86 @@ class WebsiteAnalyzer {
     if (url.includes('federation')) return 'federation-bundle';
     if (url.match(/\/[^\/]+\/(latest|v\d+)\/[^\/]+\.js$/)) return 'versioned-remote-module';
     return 'potential-remote-entry';
+  }
+
+  // Build deduplication key: "tagname.class-a.class-b" (classes sorted) or bare "tagname"
+  buildSignature(el) {
+    const tag = el.tagName.toLowerCase();
+    const classes = [...el.classList].sort().join('.');
+    return classes ? `${tag}.${classes}` : tag;
+  }
+
+  // Capture ::before and ::after pseudo-element styles for an element
+  _extractPseudoStyles(el) {
+    const pseudos = {};
+    for (const pseudo of ['::before', '::after']) {
+      const ps = window.getComputedStyle(el, pseudo);
+      const content = ps.getPropertyValue('content');
+      if (content && content !== 'none' && content !== 'normal') {
+        pseudos[pseudo] = {};
+        for (const prop of PSEUDO_ELEMENT_PROPERTIES) {
+          pseudos[pseudo][prop] = ps.getPropertyValue(prop).trim();
+        }
+      }
+    }
+    return Object.keys(pseudos).length ? pseudos : undefined;
+  }
+
+  // Build the globals section: body computed styles + html baseline
+  _buildGlobalSection() {
+    const bodyComputed = window.getComputedStyle(document.body);
+    const htmlComputed = window.getComputedStyle(document.documentElement);
+
+    const bodyStyles = {};
+    for (const prop of DESIGN_SYSTEM_PROPERTIES) {
+      bodyStyles[prop] = bodyComputed.getPropertyValue(prop).trim();
+    }
+
+    return {
+      tokens: {},  // Populated by Plan 02's _buildTokenVocabulary()
+      body: bodyStyles,
+      html: {
+        fontSize: htmlComputed.getPropertyValue('font-size').trim(),
+        fontFamily: htmlComputed.getPropertyValue('font-family').trim()
+      }
+    };
+  }
+
+  // Core style extraction: DOM walk, dedup by signature, per-element computed styles
+  extractComputedStyles() {
+    const globals = this._buildGlobalSection();
+    const seen = new Map(); // signature -> entry
+
+    for (const el of document.querySelectorAll('*')) {
+      const sig = this.buildSignature(el);
+      if (seen.has(sig)) {
+        seen.get(sig).occurrences++;
+        continue;
+      }
+
+      const computed = window.getComputedStyle(el);
+      const styles = {};
+      for (const prop of DESIGN_SYSTEM_PROPERTIES) {
+        styles[prop] = computed.getPropertyValue(prop).trim();
+      }
+
+      const pseudos = this._extractPseudoStyles(el);
+      const entry = {
+        styles,
+        states: {},  // Populated by Plan 02's _extractPseudoClassRules()
+        occurrences: 1,
+        exampleHtml: el.outerHTML.slice(0, 500)
+      };
+      if (pseudos !== undefined) entry.pseudos = pseudos;
+
+      seen.set(sig, entry);
+    }
+
+    return {
+      globals,
+      elements: Object.fromEntries(seen),
+      crossOriginStylesheets: []  // Populated by Plan 02's _extractPseudoClassRules()
+    };
   }
 }
 
