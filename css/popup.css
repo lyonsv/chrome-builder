@@ -383,3 +383,83 @@ body {
     padding: 12px;
   }
 }
+
+/* Pick Element Button */
+.btn-pick-element {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-pick-element:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btn-pick-element.active {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-pick-element.active:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+/* Selection Summary Panel */
+.selection-summary {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.selection-summary-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.selection-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2196f3;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.selection-selector {
+  font-family: monospace;
+  font-size: 13px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.selection-label {
+  font-size: 12px;
+  color: #666;
+  margin-right: 4px;
+}
+
+.selection-value {
+  font-size: 12px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.selection-summary-clear {
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.btn-clear-selection {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 8px;
+}
+
+.btn-clear-selection:hover {
+  color: #f44336;
+}
