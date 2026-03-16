@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-16T21:19:40.216Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-03-16T21:28:34.695Z"
 last_activity: 2026-03-13 — Completed plan 01-02 (SW keep-alive and session checkpoints)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 50
 ---
 
@@ -57,6 +57,7 @@ Progress: [█████░░░░░] 50%
 | Phase 03-scoped-output-and-assets P01 | 4 | 2 tasks | 7 files |
 | Phase 03-scoped-output-and-assets P02 | 20 | 2 tasks | 3 files |
 | Phase 03-scoped-output-and-assets P03 | 5 | 1 tasks | 2 files |
+| Phase 03-scoped-output-and-assets P04 | 5 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 03-scoped-output-and-assets]: updateUI() restores scope-aware label after analysis completes — prevents 'Start Analysis' stomping 'Analyze Selected Element'
 - [Phase 03-scoped-output-and-assets]: Detection methods use _ prefix convention on WebsiteAnalyzer to distinguish internal helpers from public API (buildComponentHierarchy)
 - [Phase 03-scoped-output-and-assets]: Test file uses inline function copies matching content.js — content.js has no module system, inline approach avoids build tooling
+- [Phase 03-scoped-output-and-assets]: Jest toHaveProperty() with dots/slashes parses as nested path — use Object.keys() + toContain() for literal key checks
+- [Phase 03-scoped-output-and-assets]: Binary asset data stays in background SW through ZIP assembly — URL list only crosses IPC boundary (Pitfall 6 prevention)
+- [Phase 03-scoped-output-and-assets]: extractScopedComputedStyles() sets full:true on each entry — signals no baseline subtraction for scoped standalone reconstruction
 
 ### Pending Todos
 
@@ -99,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T21:19:40.214Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-03-16T21:28:34.693Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
