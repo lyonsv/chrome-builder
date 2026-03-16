@@ -21,6 +21,38 @@
     <style>
         body { background: #f8f9fa; padding: 2rem; }
         .test-section { margin: 2rem 0; padding: 1rem; background: white; border-radius: 8px; }
+
+        /* Phase 2 Style Capture fixtures */
+        :root {
+            --color-primary: #E8462A;
+            --color-secondary: #1A73E8;
+            --color-surface: #FFFFFF;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --font-size-base: 16px;
+        }
+
+        .nav-item {
+            color: var(--color-primary);
+            padding: var(--spacing-sm) var(--spacing-md);
+            list-style: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #c73a22;
+            transform: scale(1.02);
+        }
+
+        input:focus {
+            outline: 2px solid var(--color-secondary);
+            border-color: var(--color-secondary);
+        }
+
+        .icon-label::before {
+            content: "→";
+            color: var(--color-secondary);
+            margin-right: var(--spacing-sm);
+        }
     </style>
 </head>
 <body>
@@ -47,6 +79,20 @@
             <h2>API Calls</h2>
             <button id="apiButton" class="btn btn-primary">Make API Call</button>
             <div id="apiResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Phase 2 Style Capture Test</h2>
+            <ul>
+                <li class="nav-item">Nav Item 1</li>
+                <li class="nav-item">Nav Item 2</li>
+                <li class="nav-item">Nav Item 3</li>
+                <li class="nav-item">Nav Item 4</li>
+                <li class="nav-item">Nav Item 5</li>
+            </ul>
+            <button class="btn btn-primary">Hover Me</button>
+            <input type="text" placeholder="Focus me">
+            <span class="icon-label">Download</span>
         </div>
     </div>
 
