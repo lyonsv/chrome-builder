@@ -222,12 +222,22 @@ class PopupController {
       // Wait a moment for the script to initialize
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Now try to send message
+      // Now try to send message — 60s timeout guards against content script hangs
       return new Promise((resolve, reject) => {
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          console.warn('Content script analysis timed out after 60s, using fallback');
+          this.performFallbackAnalysis().then(resolve).catch(reject);
+        }, 60000);
+
         chrome.tabs.sendMessage(this.currentTab.id, { action: 'ANALYZE_WEBSITE' }, (response) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           if (chrome.runtime.lastError) {
             console.error('Content script communication failed:', chrome.runtime.lastError.message);
-            // Try fallback analysis without content script
             this.performFallbackAnalysis().then(resolve).catch(reject);
           } else if (response && response.success) {
             console.log('Content script analysis successful');
