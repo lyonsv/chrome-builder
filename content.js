@@ -1230,6 +1230,121 @@ class WebsiteAnalyzer {
     };
   }
 
+  // Extract pseudo-class rule deltas (:hover, :focus, etc.) by walking stylesheets
+  _extractPseudoClassRules() {
+    const PSEUDO_CLASSES = [':hover', ':focus', ':focus-visible', ':active', ':disabled'];
+    const pseudoMap = {};
+    const crossOriginUrls = [];
+
+    const walkRules = (rules) => {
+      for (const rule of rules) {
+        if (rule instanceof CSSStyleRule) {
+          for (const pseudo of PSEUDO_CLASSES) {
+            if (rule.selectorText.endsWith(pseudo)) {
+              const baseSelector = rule.selectorText.slice(0, -pseudo.length).trim();
+              if (!baseSelector) continue;
+              try {
+                const matches = document.querySelectorAll(baseSelector);
+                for (const el of matches) {
+                  const sig = this.buildSignature(el);
+                  if (!pseudoMap[sig]) pseudoMap[sig] = {};
+                  if (!pseudoMap[sig][pseudo]) pseudoMap[sig][pseudo] = {};
+                  for (let i = 0; i < rule.style.length; i++) {
+                    const prop = rule.style[i];
+                    pseudoMap[sig][pseudo][prop] = rule.style.getPropertyValue(prop).trim();
+                  }
+                }
+              } catch (_) { /* invalid selector after strip — skip */ }
+            }
+          }
+        }
+        if (rule.cssRules) walkRules(rule.cssRules); // recurse @media/@supports/@layer
+      }
+    };
+
+    for (const sheet of document.styleSheets) {
+      try {
+        walkRules(sheet.cssRules || []);
+      } catch (_) {
+        if (sheet.href) crossOriginUrls.push(sheet.href);
+      }
+    }
+
+    return { pseudoMap, crossOriginUrls };
+  }
+
+  // Build CSS custom property token vocabulary grouped by naming pattern
+  _buildTokenVocabulary() {
+    const tokens = {};
+
+    // Step 1: Read all :root custom properties from computed style
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    for (let i = 0; i < rootStyle.length; i++) {
+      const prop = rootStyle[i];
+      if (prop.startsWith('--')) {
+        tokens[prop] = {
+          value: rootStyle.getPropertyValue(prop).trim(),
+          definedAt: ':root',
+          usedBy: []
+        };
+      }
+    }
+
+    // Step 2: Scan stylesheet rules for scoped custom property definitions and var() usage
+    for (const sheet of document.styleSheets) {
+      try {
+        const walkForTokens = (rules) => {
+          for (const rule of rules) {
+            if (rule instanceof CSSStyleRule) {
+              // Scoped custom property definitions
+              for (let i = 0; i < rule.style.length; i++) {
+                const prop = rule.style[i];
+                if (prop.startsWith('--') && rule.selectorText !== ':root') {
+                  if (!tokens[prop]) tokens[prop] = { usedBy: [] };
+                  tokens[prop].scopedAt = rule.selectorText;
+                  tokens[prop].value = rule.style.getPropertyValue(prop).trim();
+                }
+              }
+
+              // var() usage — find which token names are referenced
+              for (let i = 0; i < rule.style.length; i++) {
+                const prop = rule.style[i];
+                const val = rule.style.getPropertyValue(prop);
+                const match = val.match(/var\((--[^,)]+)/);
+                if (match) {
+                  const tokenName = match[1].trim();
+                  if (tokens[tokenName]) {
+                    try {
+                      const matches = document.querySelectorAll(rule.selectorText);
+                      for (const el of matches) {
+                        const sig = this.buildSignature(el);
+                        if (!tokens[tokenName].usedBy.includes(sig)) {
+                          tokens[tokenName].usedBy.push(sig);
+                        }
+                      }
+                    } catch (_) { /* invalid selector — skip */ }
+                  }
+                }
+              }
+            }
+            if (rule.cssRules) walkForTokens(rule.cssRules);
+          }
+        };
+        walkForTokens(sheet.cssRules || []);
+      } catch (_) { /* cross-origin */ }
+    }
+
+    // Step 3: Group by naming pattern
+    const grouped = { color: {}, spacing: {}, font: {}, other: {} };
+    for (const [name, data] of Object.entries(tokens)) {
+      if (name.startsWith('--color-')) grouped.color[name] = data;
+      else if (name.startsWith('--spacing-')) grouped.spacing[name] = data;
+      else if (name.startsWith('--font-')) grouped.font[name] = data;
+      else grouped.other[name] = data;
+    }
+    return grouped;
+  }
+
   // Core style extraction: DOM walk, dedup by signature, per-element computed styles
   extractComputedStyles() {
     const globals = this._buildGlobalSection();
@@ -1251,7 +1366,7 @@ class WebsiteAnalyzer {
       const pseudos = this._extractPseudoStyles(el);
       const entry = {
         styles,
-        states: {},  // Populated by Plan 02's _extractPseudoClassRules()
+        states: {},
         occurrences: 1,
         exampleHtml: el.outerHTML.slice(0, 500)
       };
@@ -1260,10 +1375,18 @@ class WebsiteAnalyzer {
       seen.set(sig, entry);
     }
 
+    // Merge pseudo-class state deltas and token vocabulary
+    const pseudoClassResult = this._extractPseudoClassRules();
+    for (const [sig, entry] of seen) {
+      entry.states = pseudoClassResult.pseudoMap[sig] || {};
+    }
+
+    globals.tokens = this._buildTokenVocabulary();
+
     return {
       globals,
       elements: Object.fromEntries(seen),
-      crossOriginStylesheets: []  // Populated by Plan 02's _extractPseudoClassRules()
+      crossOriginStylesheets: pseudoClassResult.crossOriginUrls
     };
   }
 }
