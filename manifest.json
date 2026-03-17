@@ -11,7 +11,7 @@
     "scripting",
     "storage",
     "tabs",
-    "debugger"
+    "alarms"
   ],
 
   "host_permissions": [
@@ -38,7 +38,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["injected.js", "local-analyzer.js"],
+      "resources": ["injected.js", "local-analyzer.js", "content.js"],
       "matches": ["<all_urls>"]
     }
   ],

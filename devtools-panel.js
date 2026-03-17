@@ -665,27 +665,10 @@ class DevToolsPanel {
   }
 }
 
-// Initialize the DevTools panel
-console.log('DevTools panel script loaded');
-
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('DevTools panel DOM loaded, initializing...');
   try {
-    const panel = new DevToolsPanel();
-    console.log('DevTools panel instance created:', panel);
+    new DevToolsPanel();
   } catch (error) {
     console.error('DevTools panel initialization failed:', error);
   }
 });
-
-// Also try immediate initialization in case DOM is already loaded
-if (document.readyState === 'loading') {
-  console.log('DOM still loading, waiting...');
-} else {
-  console.log('DOM already loaded, initializing immediately');
-  try {
-    new DevToolsPanel();
-  } catch (error) {
-    console.error('Immediate DevTools panel initialization failed:', error);
-  }
-}
