@@ -74,7 +74,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The `/tracking/` directory contains a structured event schema: the dataLayer push history, GTM container configuration, and a map of which user interactions trigger which events with which properties
   2. The tracking output is structured so an LLM can reproduce the analytics instrumentation for a migrated component without any additional reverse-engineering of the original site
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Tests + captureTrackingData in content.js (TRACK-01)
+- [ ] 04-02-PLAN.md — Schema derivation, ZIP integration, and popup UI (TRACK-01)
 
 ## Progress
 
@@ -88,4 +92,4 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 | 1. Infrastructure Foundation | 4/4 | Complete   | 2026-03-13 |
 | 2. Style Capture | 0/2 | Not started | - |
 | 3. Scoped Output and Assets | 1/4 | In Progress|  |
-| 4. Tracking Plan | 0/TBD | Not started | - |
+| 4. Tracking Plan | 0/2 | Not started | - |
