@@ -164,6 +164,9 @@ class WebsiteAnalyzer {
       // Extract module federation and component data (synchronous)
       const moduleFederationData = this.extractModuleFederationData();
 
+      // Capture tracking data — synchronous snapshot of window.dataLayer + GTM
+      const trackingData = this.captureTrackingData();
+
       // Scoped capture — when element is selected
       let scopedHtml = null;
       let componentHierarchy = null;
@@ -221,6 +224,7 @@ class WebsiteAnalyzer {
         componentHierarchy: componentHierarchy,
         assetUrls: assetUrls,
         scopeMetadata: scopeMetadata,
+        trackingData: trackingData,   // Phase 4 tracking capture
         timestamp: new Date().toISOString()
       };
     } catch (error) {
@@ -760,6 +764,67 @@ class WebsiteAnalyzer {
       'DataDog': 'Performance'
     };
     return categories[serviceName] || 'Unknown';
+  }
+
+  captureTrackingData() {
+    // Snapshot dataLayer — deep clone to avoid reference aliasing (Pitfall 3)
+    let rawDataLayer;
+    if (Array.isArray(window.dataLayer)) {
+      try {
+        rawDataLayer = JSON.parse(JSON.stringify(window.dataLayer));
+      } catch (_) {
+        // Fallback for non-serializable entries (circular refs, DOM elements)
+        rawDataLayer = window.dataLayer.map(entry => {
+          try { return JSON.parse(JSON.stringify(entry)); }
+          catch (_) { return { _serializationError: true, keys: Object.keys(entry || {}) }; }
+        });
+      }
+    } else {
+      rawDataLayer = [];
+    }
+
+    // Extract GTM container info from window.google_tag_manager
+    const gtm = {};
+    if (window.google_tag_manager) {
+      const containerIds = Object.keys(window.google_tag_manager)
+        .filter(k => k.startsWith('GTM-'));
+      if (containerIds.length > 0) {
+        gtm.containerId = containerIds[0];
+        gtm.allContainerIds = containerIds;
+        try {
+          const container = window.google_tag_manager[containerIds[0]];
+          gtm.tags = container && container.dataLayer
+            ? Object.keys(container).filter(k => k !== 'dataLayer')
+            : [];
+        } catch (_) {
+          gtm.tags = [];
+        }
+      }
+    }
+
+    // Fallback: parse GTM container ID from script src URL
+    if (!gtm.containerId) {
+      const gtmScript = document.querySelector('script[src*="gtm.js?id="]');
+      if (gtmScript) {
+        const match = gtmScript.src.match(/[?&]id=(GTM-[A-Z0-9]+)/);
+        if (match) {
+          gtm.containerId = match[1];
+          gtm.allContainerIds = [match[1]];
+          gtm.tags = [];
+        }
+      }
+    }
+
+    return {
+      dataLayer: rawDataLayer,
+      gtm: Object.keys(gtm).length > 0 ? gtm : null,
+      hasGtm: !!gtm.containerId,
+      note: !gtm.containerId && rawDataLayer.length === 0
+        ? 'No GTM container detected. No dataLayer pushes observed.'
+        : !gtm.containerId
+          ? 'No GTM container detected. dataLayer present but no google_tag_manager object found.'
+          : null
+    };
   }
 
   extractMetadata() {
