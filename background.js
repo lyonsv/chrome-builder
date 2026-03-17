@@ -264,6 +264,23 @@ class MigrationAnalyzer {
           sendResponse({ success: true });
           break;
 
+        case 'ELEMENT_SELECTED': {
+          // Fields may be top-level (from injected overlay) or nested under data
+          const sel = message.selector ?? data?.selector;
+          const html = message.outerHtml ?? data?.outerHtml;
+          const count = message.childCount ?? data?.childCount;
+          await chrome.storage.session.set({
+            [`pickerSelection_${tabId}`]: { selector: sel, outerHtml: html, childCount: count, tabId }
+          });
+          sendResponse({ success: true });
+          break;
+        }
+
+        case 'PICKER_CANCELLED':
+          await chrome.storage.session.remove(`pickerSelection_${tabId}`);
+          sendResponse({ success: true });
+          break;
+
         case 'DEBUG_STATUS':
           console.log('Debug status requested for tab:', tabId);
           const currentTabRequests = this.getNetworkData(tabId);

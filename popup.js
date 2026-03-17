@@ -106,6 +106,14 @@ class PopupController {
       if (this.currentTab) {
         this.urlText.textContent = this.currentTab.url;
         this.updateStatus('ready', 'Ready to analyze');
+
+        // Restore any pending picker selection (survives popup close/reopen)
+        const key = `pickerSelection_${this.currentTab.id}`;
+        const stored = await chrome.storage.session.get(key);
+        if (stored[key]) {
+          this.onElementSelected(stored[key]);
+          await chrome.storage.session.remove(key);
+        }
       } else {
         this.updateStatus('error', 'No active tab found');
       }
@@ -1230,6 +1238,11 @@ class PopupController {
 
   clearSelection() {
     this.selectedElement = null;
+
+    // Clear any persisted selection so it doesn't restore on next popup open
+    if (this.currentTab) {
+      chrome.storage.session.remove(`pickerSelection_${this.currentTab.id}`).catch(() => {});
+    }
 
     // Hide selection summary
     this.selectionSummary.style.display = 'none';
