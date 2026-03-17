@@ -45,6 +45,7 @@ class PopupController {
     this.networkCount = document.getElementById('networkCount');
     this.frameworksCount = document.getElementById('frameworksCount');
     this.servicesCount = document.getElementById('servicesCount');
+    this.trackingCount = document.getElementById('trackingCount');
 
     // Details
     this.frameworkDetails = document.getElementById('frameworkDetails');
@@ -844,6 +845,10 @@ class PopupController {
     this.networkCount.textContent = totalNetworkRequests.toLocaleString();
     this.frameworksCount.textContent = totalFrameworks;
     this.servicesCount.textContent = totalServices;
+
+    // Tracking events count
+    const totalTrackingEvents = this.analysisData.trackingData ? this.analysisData.trackingData.dataLayer.length : 0;
+    this.trackingCount.textContent = totalTrackingEvents;
 
     // Show frameworks
     if (totalFrameworks > 0) {
