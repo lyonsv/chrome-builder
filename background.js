@@ -37,6 +37,31 @@ function resolveFilename(filename, seen) {
   return filename.slice(0, dotIdx) + '-' + counter + filename.slice(dotIdx);
 }
 
+// Phase 4: Derive deduplicated event schema from raw dataLayer entries
+function deriveEventSchema(dataLayerEntries) {
+  const eventMap = new Map();
+  for (const entry of dataLayerEntries) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const eventName = entry.event || '__variables__';
+    if (!eventMap.has(eventName)) {
+      eventMap.set(eventName, { name: eventName, properties: new Map() });
+    }
+    const eventDef = eventMap.get(eventName);
+    for (const [key, value] of Object.entries(entry)) {
+      if (!eventDef.properties.has(key)) {
+        const exampleValue = typeof value === 'string' && value.length > 200
+          ? value.slice(0, 200) + '...'
+          : value;
+        eventDef.properties.set(key, exampleValue);
+      }
+    }
+  }
+  return Array.from(eventMap.values()).map(e => ({
+    name: e.name,
+    properties: Array.from(e.properties.entries()).map(([key, exampleValue]) => ({ key, exampleValue }))
+  }));
+}
+
 class MigrationAnalyzer {
   constructor() {
     this.networkRequests = new Map(); // Store all requests for all tabs
@@ -657,8 +682,8 @@ class MigrationAnalyzer {
 
     // Build file tree — pre-scaffold final Phase 3 directory layout
     // fflate represents empty dirs with trailing slash key + empty object value
+    // NOTE: index.json is encoded LAST (after all indexData mutations) — see end of block
     const fileTree = {
-      'index.json': fflate.strToU8(JSON.stringify(indexData, null, 2)),
       'html/':             {},
       'css/':              {},
       'computed-styles/':  {},
@@ -708,6 +733,52 @@ class MigrationAnalyzer {
         )
       };
     }
+
+    // Phase 4: Tracking data — dataLayer snapshot + derived event schema
+    const trackingData = analysisData.trackingData || null;
+    const rawDataLayer = trackingData ? trackingData.dataLayer : [];
+    const gtmData = trackingData ? trackingData.gtm : null;
+    const hasGtm = trackingData ? trackingData.hasGtm : false;
+
+    // Derive deduplicated event schema
+    const schemaEvents = deriveEventSchema(rawDataLayer);
+
+    // Reference detected analytics from thirdPartyServices (Phase 1 detection)
+    const detectedAnalytics = (analysisData.thirdPartyServices || [])
+      .filter(s => s.category === 'Analytics')
+      .map(s => s.name);
+
+    const schemaJson = {
+      events: schemaEvents,
+      gtm: hasGtm ? {
+        containerId: gtmData.containerId,
+        allContainerIds: gtmData.allContainerIds || [],
+        tags: gtmData.tags || []
+      } : null,
+      analytics: {
+        detected: detectedAnalytics
+      },
+      ...(trackingData && trackingData.note ? { note: trackingData.note } : {})
+    };
+
+    fileTree['tracking/'] = {
+      'events.json': fflate.strToU8(JSON.stringify(rawDataLayer, null, 2)),
+      'schema.json': fflate.strToU8(JSON.stringify(schemaJson, null, 2))
+    };
+
+    // Update indexData with tracking summary (MUST happen before index.json encoding)
+    indexData.stages.tracking = rawDataLayer.length > 0 || hasGtm;
+    indexData.tracking = {
+      hasGtm,
+      containerId: hasGtm ? gtmData.containerId : null,
+      eventCount: rawDataLayer.length,
+      uniqueEventNames: schemaEvents
+        .filter(e => e.name !== '__variables__')
+        .map(e => e.name)
+    };
+
+    // Encode index.json LAST — after all indexData mutations
+    fileTree['index.json'] = fflate.strToU8(JSON.stringify(indexData, null, 2));
 
     // Compress at level 1 (fast, minimal CPU — ZIP is for packaging, not archival)
     const zipped = fflate.zipSync(fileTree, { level: 1 });
