@@ -80,12 +80,40 @@ Plans:
 - [ ] 04-01-PLAN.md — Tests + captureTrackingData in content.js (TRACK-01)
 - [ ] 04-02-PLAN.md — Schema derivation, ZIP integration, and popup UI (TRACK-01)
 
+### Phase 5: Fix Popup Data Display
+**Goal:** Popup correctly shows analysis result counts (tracking events, assets, services) by fixing the response shape mismatch between the content script and popup.js
+**Depends on**: Phase 4
+**Requirements**: TRACK-01, SCOPE-01, SCOPE-03
+**Gap Closure:** Closes gaps from v1.0 audit — Integration Issue A
+
+Plans:
+- [ ] 05-01-PLAN.md — Fix analyzeWebsiteContent() response shape: push ANALYSIS_STORED from background or add GET_ANALYSIS request from popup
+
+### Phase 6: Fix Detection and CSS Export
+**Goal:** Remove hardcoded site names from popup.js fallback path and write fetched CSS content into the css/ ZIP directory
+**Depends on**: Phase 1, Phase 3
+**Requirements**: TRACK-03, SCOPE-02
+**Gap Closure:** Closes gaps from v1.0 audit — Integration Issues B + C
+
+Plans:
+- [ ] 06-01-PLAN.md — Replace detectServicesForKnownSites() hostname map with generic signal-based detection (TRACK-03)
+- [ ] 06-02-PLAN.md — Write fetched stylesheet content into css/ directory entries in ZIP (SCOPE-02)
+
+### Phase 7: Verify Phase 2 Style Capture
+**Goal:** Produce a formal VERIFICATION.md for Phase 2, confirming STYLE-01, STYLE-02, and STYLE-03 are satisfied by the existing implementation
+**Depends on**: Phase 2
+**Requirements**: STYLE-01, STYLE-02, STYLE-03
+**Gap Closure:** Closes gaps from v1.0 audit — Phase 2 unverified
+
+Plans:
+- [ ] 07-01-PLAN.md — Write verification tests and create VERIFICATION.md for Phase 2 style capture
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
-Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 if tracking migration is higher priority than component scoping.
+Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 if tracking migration is higher priority than component scoping. Phases 5–7 are gap closure phases added after v1.0 milestone audit.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -93,3 +121,6 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 | 2. Style Capture | 0/2 | Not started | - |
 | 3. Scoped Output and Assets | 1/4 | In Progress|  |
 | 4. Tracking Plan | 2/2 | Complete   | 2026-03-17 |
+| 5. Fix Popup Data Display | 0/1 | Pending | - |
+| 6. Fix Detection and CSS Export | 0/2 | Pending | - |
+| 7. Verify Phase 2 Style Capture | 0/1 | Pending | - |

@@ -15,21 +15,21 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Style Capture
 
-- [x] **STYLE-01**: Extension captures `getComputedStyle` for every DOM element on the page, deduplicated by element signature (tag + class + key properties), filtered to ~60 design-system-relevant CSS properties
-- [x] **STYLE-02**: Extension captures interaction-state CSS rules (`:hover`, `:focus`, `:active`, `:disabled`) for elements by inspecting stylesheet rule lists, not just default computed state
-- [x] **STYLE-03**: Extension captures both CSS custom property names (`--color-primary`) and their resolved values (`#E8462A`) so an LLM understands the design token vocabulary alongside the raw values
+- [ ] **STYLE-01**: Extension captures `getComputedStyle` for every DOM element on the page, deduplicated by element signature (tag + class + key properties), filtered to ~60 design-system-relevant CSS properties
+- [ ] **STYLE-02**: Extension captures interaction-state CSS rules (`:hover`, `:focus`, `:active`, `:disabled`) for elements by inspecting stylesheet rule lists, not just default computed state
+- [ ] **STYLE-03**: Extension captures both CSS custom property names (`--color-primary`) and their resolved values (`#E8462A`) so an LLM understands the design token vocabulary alongside the raw values
 
 ### Scope & Output
 
 - [x] **SCOPE-01**: User can click to select a specific element or component on the page, and the extension captures only that subtree's HTML, computed styles, and assets — scoped output rather than full-page dump
-- [x] **SCOPE-02**: Extension exports a structured directory: `index.json` (manifest + summary), `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking` — replacing the existing single JSON bundle
+- [ ] **SCOPE-02**: Extension exports a structured directory: `index.json` (manifest + summary), `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking` — replacing the existing single JSON bundle
 - [x] **SCOPE-03**: Extension fetches and saves actual image, font, and icon files (routed through the background service worker to bypass CORS) rather than capturing URL references only
 
 ### Tracking & Detection
 
 - [x] **TRACK-01**: Extension captures `dataLayer` push history and GTM event schema — what events fire, what properties they carry, and which user interactions trigger them
 - [x] **TRACK-02**: Extension annotates the DOM tree with logical component boundaries (React fiber internals, `data-` attributes, BEM class patterns) to produce a named component hierarchy alongside the raw HTML
-- [x] **TRACK-03**: All detection logic (framework detection, third-party services, module federation patterns, component architecture) is expressed as generic observable patterns with no hardcoded site names in the codebase
+- [ ] **TRACK-03**: All detection logic (framework detection, third-party services, module federation patterns, component architecture) is expressed as generic observable patterns with no hardcoded site names in the codebase
 
 ## v2 Requirements
 
@@ -61,20 +61,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| TRACK-03 | Phase 1 | Complete |
-| STYLE-01 | Phase 2 | Complete |
-| STYLE-02 | Phase 2 | Complete |
-| STYLE-03 | Phase 2 | Complete |
-| SCOPE-01 | Phase 3 | Complete |
-| SCOPE-02 | Phase 3 | Complete |
-| SCOPE-03 | Phase 3 | Complete |
+| TRACK-03 | Phase 6 | Pending |
+| STYLE-01 | Phase 7 | Pending |
+| STYLE-02 | Phase 7 | Pending |
+| STYLE-03 | Phase 7 | Pending |
+| SCOPE-01 | Phase 3 / Phase 5 | Pending |
+| SCOPE-02 | Phase 6 | Pending |
+| SCOPE-03 | Phase 3 / Phase 5 | Pending |
 | TRACK-02 | Phase 3 | Complete |
-| TRACK-01 | Phase 4 | Complete |
+| TRACK-01 | Phase 4 / Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
 - Mapped to phases: 12
 - Unmapped: 0 ✓
+- Gap closure phases added: 5, 6, 7 (from v1.0 audit 2026-03-18)
 
 ---
 *Requirements defined: 2026-03-13*
