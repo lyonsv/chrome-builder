@@ -37,6 +37,37 @@ function resolveFilename(filename, seen) {
   return filename.slice(0, dotIdx) + '-' + counter + filename.slice(dotIdx);
 }
 
+// Phase 6: Extract CSS URLs from network request log
+// Three-strategy detection: type field > content-type header > .css URL pattern
+function extractCssUrlsFromNetworkRequests(requests) {
+  const seen = new Set();
+  return requests
+    .filter(req => {
+      // Strategy 1: webRequest type field (most reliable, set at request time)
+      if (req.type === 'stylesheet') return true;
+      // Strategy 2: content-type response header
+      const headers = req.responseHeaders || [];
+      const ct = headers.find(h => h.name.toLowerCase() === 'content-type');
+      if (ct && ct.value.includes('text/css')) return true;
+      // Strategy 3: URL pattern fallback (.css extension)
+      return /\.css(\?|$)/.test(req.url);
+    })
+    .map(req => req.url)
+    .filter(url => {
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+}
+
+// Phase 6: Extract CSS URLs from analysisData (DOM-inspection path)
+// Filters inline entries, null URLs, and blob: URLs
+function extractCssUrlsFromAnalysisData(analysisData) {
+  return (analysisData.assets?.css || [])
+    .filter(entry => !entry.inline && entry.url && !entry.url.startsWith('blob:'))
+    .map(entry => entry.url);
+}
+
 // Phase 4: Derive deduplicated event schema from raw dataLayer entries
 function deriveEventSchema(dataLayerEntries) {
   const eventMap = new Map();
@@ -891,6 +922,42 @@ class MigrationAnalyzer {
         assetsDir[asset.filename] = asset.data; // Uint8Array — NOT strToU8
       }
       fileTree['assets/'] = assetsDir;
+    }
+
+    // Phase 6: CSS stylesheets — fetch external stylesheets into css/ directory
+    // D-07: Include all page stylesheets regardless of element scoping
+    const cssUrls = extractCssUrlsFromAnalysisData(analysisData);
+    // Fallback: if no CSS URLs from analysis data, try network request log (D-08, D-09)
+    const effectiveCssUrls = cssUrls.length > 0
+      ? cssUrls
+      : extractCssUrlsFromNetworkRequests(networkData);
+
+    if (effectiveCssUrls.length > 0) {
+      const cssResult = await this.fetchAssets(effectiveCssUrls);
+      const fetchedCss = cssResult.successes;
+      const failedCss = cssResult.failures;
+
+      // Record CSS fetch failures alongside asset failures (Pitfall 2)
+      failedAssets.push(...failedCss);
+
+      if (fetchedCss.length > 0) {
+        const cssDir = {};
+        for (const sheet of fetchedCss) {
+          // fetchAssets returns { url, filename, data: Uint8Array } — correct for fflate
+          cssDir[sheet.filename] = sheet.data;
+        }
+        fileTree['css/'] = cssDir;
+      }
+
+      // Update stages flag (Pitfall 1: must happen before index.json encoding)
+      indexData.stages.css = fetchedCss.length > 0;
+
+      // CSS summary for LLM consumers
+      indexData.css = {
+        fileCount: fetchedCss.length,
+        failedCount: failedCss.length,
+        files: fetchedCss.map(s => s.filename)
+      };
     }
 
     // Network data
