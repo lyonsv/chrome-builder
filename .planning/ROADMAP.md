@@ -85,9 +85,10 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: TRACK-01, SCOPE-01, SCOPE-03
 **Gap Closure:** Closes gaps from v1.0 audit — Integration Issue A
+**Plans:** 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Fix analyzeWebsiteContent() response shape: push ANALYSIS_STORED from background or add GET_ANALYSIS request from popup
+- [ ] 05-01-PLAN.md — Add GET_ANALYSIS pull pattern: background handler + popup two-step flow + loadCurrentTab restoration (TRACK-01, SCOPE-01, SCOPE-03)
 
 ### Phase 6: Fix Detection and CSS Export
 **Goal:** Remove hardcoded site names from popup.js fallback path and write fetched CSS content into the css/ ZIP directory
