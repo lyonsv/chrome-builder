@@ -65,11 +65,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STYLE-01 | Phase 7 | Pending |
 | STYLE-02 | Phase 7 | Pending |
 | STYLE-03 | Phase 7 | Pending |
-| SCOPE-01 | Phase 3 / Phase 5 | Pending |
+| SCOPE-01 | Phase 3 / Phase 5 | Complete |
 | SCOPE-02 | Phase 6 | Pending |
-| SCOPE-03 | Phase 3 / Phase 5 | Pending |
+| SCOPE-03 | Phase 3 / Phase 5 | Complete |
 | TRACK-02 | Phase 3 | Complete |
-| TRACK-01 | Phase 4 / Phase 5 | Pending |
+| TRACK-01 | Phase 4 / Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 12 total

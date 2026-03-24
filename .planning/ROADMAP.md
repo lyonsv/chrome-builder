@@ -85,10 +85,10 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: TRACK-01, SCOPE-01, SCOPE-03
 **Gap Closure:** Closes gaps from v1.0 audit — Integration Issue A
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 05-01-PLAN.md — Add GET_ANALYSIS pull pattern: background handler + popup two-step flow + loadCurrentTab restoration (TRACK-01, SCOPE-01, SCOPE-03)
+- [x] 05-01-PLAN.md — Add GET_ANALYSIS pull pattern: background handler + popup two-step flow + loadCurrentTab restoration (TRACK-01, SCOPE-01, SCOPE-03)
 
 ### Phase 6: Fix Detection and CSS Export
 **Goal:** Remove hardcoded site names from popup.js fallback path and write fetched CSS content into the css/ ZIP directory
@@ -122,6 +122,6 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 | 2. Style Capture | 0/2 | Not started | - |
 | 3. Scoped Output and Assets | 1/4 | In Progress|  |
 | 4. Tracking Plan | 2/2 | Complete   | 2026-03-17 |
-| 5. Fix Popup Data Display | 0/1 | Pending | - |
+| 5. Fix Popup Data Display | 1/1 | Complete   | 2026-03-24 |
 | 6. Fix Detection and CSS Export | 0/2 | Pending | - |
 | 7. Verify Phase 2 Style Capture | 0/1 | Pending | - |
