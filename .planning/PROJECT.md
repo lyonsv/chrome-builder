@@ -32,8 +32,8 @@ An LLM can be handed any component's output and know exactly how to rebuild it �
 - [ ] Actual asset downloading — fetch and save images, fonts, icons as real files rather than URL references only
 - [x] GA / tracking plan extraction — capture `dataLayer` push history, GTM container config, and event schema so the tracking plan is reproducible (Validated in Phase 4-5: tracking capture + popup display fix)
 - [ ] Component hierarchy mapping — annotate the DOM tree with logical component boundaries to make nesting and layout structure legible to an LLM
-- [ ] Structured directory output — replace single JSON bundle with a folder: `index.json`, `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking`
-- [ ] Agnostic site detection — all detection logic (module federation, component architecture patterns, analytics) expressed as generic patterns, no hardcoded site names in code
+- [x] Structured directory output — replace single JSON bundle with a folder: `index.json`, `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking` (Validated in Phase 3+6: scoped output with CSS file population)
+- [x] Agnostic site detection — all detection logic (module federation, component architecture patterns, analytics) expressed as generic patterns, no hardcoded site names in code (Validated in Phase 6: removed detectServicesForKnownSites, replaced with network-based pattern matching)
 
 ### Out of Scope
 
@@ -68,4 +68,4 @@ Sites of interest are all large stock media platforms with module federation / m
 | No build system | Extension loads unpacked; adding webpack/Vite introduces friction for contributors and the primary author | — Pending |
 
 ---
-*Last updated: 2026-03-24 after Phase 5 completion — popup data display fix*
+*Last updated: 2026-03-24 after Phase 6 completion — hardcoded detection removed, CSS export populated*
