@@ -97,8 +97,8 @@ Plans:
 **Gap Closure:** Closes gaps from v1.0 audit — Integration Issues B + C
 
 Plans:
-- [ ] 06-01-PLAN.md — Replace detectServicesForKnownSites() hostname map with generic signal-based detection (TRACK-03)
-- [ ] 06-02-PLAN.md — Write fetched stylesheet content into css/ directory entries in ZIP (SCOPE-02)
+- [x] 06-01-PLAN.md — Replace detectServicesForKnownSites() hostname map with generic signal-based detection (TRACK-03)
+- [x] 06-02-PLAN.md — Write fetched stylesheet content into css/ directory entries in ZIP (SCOPE-02)
 
 ### Phase 7: Verify Phase 2 Style Capture
 **Goal:** Produce a formal VERIFICATION.md for Phase 2, confirming STYLE-01, STYLE-02, and STYLE-03 are satisfied by the existing implementation
@@ -123,5 +123,5 @@ Note: Phase 4 depends only on Phase 1 and can be reprioritised ahead of Phase 3 
 | 3. Scoped Output and Assets | 1/4 | In Progress|  |
 | 4. Tracking Plan | 2/2 | Complete   | 2026-03-17 |
 | 5. Fix Popup Data Display | 1/1 | Complete   | 2026-03-24 |
-| 6. Fix Detection and CSS Export | 0/2 | Pending | - |
+| 6. Fix Detection and CSS Export | 2/2 | Complete   | 2026-03-24 |
 | 7. Verify Phase 2 Style Capture | 0/1 | Pending | - |
