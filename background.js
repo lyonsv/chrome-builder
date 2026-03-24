@@ -772,6 +772,42 @@ class MigrationAnalyzer {
       fileTree['assets/'] = assetsDir;
     }
 
+    // Phase 6: CSS stylesheets — fetch external stylesheets into css/ directory
+    // D-07: Include all page stylesheets regardless of element scoping
+    const cssUrls = extractCssUrlsFromAnalysisData(analysisData);
+    // Fallback: if no CSS URLs from analysis data, try network request log (D-08, D-09)
+    const effectiveCssUrls = cssUrls.length > 0
+      ? cssUrls
+      : extractCssUrlsFromNetworkRequests(networkData);
+
+    if (effectiveCssUrls.length > 0) {
+      const cssResult = await this.fetchAssets(effectiveCssUrls);
+      const fetchedCss = cssResult.successes;
+      const failedCss = cssResult.failures;
+
+      // Record CSS fetch failures alongside asset failures (Pitfall 2)
+      failedAssets.push(...failedCss);
+
+      if (fetchedCss.length > 0) {
+        const cssDir = {};
+        for (const sheet of fetchedCss) {
+          // fetchAssets returns { url, filename, data: Uint8Array } — correct for fflate
+          cssDir[sheet.filename] = sheet.data;
+        }
+        fileTree['css/'] = cssDir;
+      }
+
+      // Update stages flag (Pitfall 1: must happen before index.json encoding)
+      indexData.stages.css = fetchedCss.length > 0;
+
+      // CSS summary for LLM consumers
+      indexData.css = {
+        fileCount: fetchedCss.length,
+        failedCount: failedCss.length,
+        files: fetchedCss.map(s => s.filename)
+      };
+    }
+
     // Network data
     if (networkData && networkData.length > 0) {
       fileTree['network/'] = {
