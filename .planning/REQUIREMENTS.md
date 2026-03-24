@@ -15,9 +15,9 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Style Capture
 
-- [ ] **STYLE-01**: Extension captures `getComputedStyle` for every DOM element on the page, deduplicated by element signature (tag + class + key properties), filtered to ~60 design-system-relevant CSS properties
-- [ ] **STYLE-02**: Extension captures interaction-state CSS rules (`:hover`, `:focus`, `:active`, `:disabled`) for elements by inspecting stylesheet rule lists, not just default computed state
-- [ ] **STYLE-03**: Extension captures both CSS custom property names (`--color-primary`) and their resolved values (`#E8462A`) so an LLM understands the design token vocabulary alongside the raw values
+- [x] **STYLE-01**: Extension captures `getComputedStyle` for every DOM element on the page, deduplicated by element signature (tag + class + key properties), filtered to ~60 design-system-relevant CSS properties
+- [x] **STYLE-02**: Extension captures interaction-state CSS rules (`:hover`, `:focus`, `:active`, `:disabled`) for elements by inspecting stylesheet rule lists, not just default computed state
+- [x] **STYLE-03**: Extension captures both CSS custom property names (`--color-primary`) and their resolved values (`#E8462A`) so an LLM understands the design token vocabulary alongside the raw values
 
 ### Scope & Output
 
@@ -62,9 +62,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | TRACK-03 | Phase 6 | Complete |
-| STYLE-01 | Phase 7 | Pending |
-| STYLE-02 | Phase 7 | Pending |
-| STYLE-03 | Phase 7 | Pending |
+| STYLE-01 | Phase 7 | Complete |
+| STYLE-02 | Phase 7 | Complete |
+| STYLE-03 | Phase 7 | Complete |
 | SCOPE-01 | Phase 3 / Phase 5 | Complete |
 | SCOPE-02 | Phase 6 | Complete |
 | SCOPE-03 | Phase 3 / Phase 5 | Complete |
