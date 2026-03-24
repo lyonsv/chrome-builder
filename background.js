@@ -247,6 +247,29 @@ class MigrationAnalyzer {
           sendResponse({ success: true, data: networkData });
           break;
 
+        case 'GET_ANALYSIS': {
+          const stored = this.analysisData.get(tabId);
+          if (!stored) {
+            sendResponse({ success: false, error: 'No analysis stored for tab' });
+            break;
+          }
+          const networkRequests = this.networkRequests.get(tabId) || [];
+          sendResponse({
+            success: true,
+            data: {
+              url: stored.url,
+              title: stored.title,
+              analysisMode: stored.analysisMode,
+              assets: stored.assets,
+              frameworks: stored.frameworks,
+              thirdPartyServices: stored.thirdPartyServices,
+              trackingData: stored.trackingData,
+              networkRequests
+            }
+          });
+          break;
+        }
+
         case 'STORE_ANALYSIS':
           if (!tabId) {
             throw new Error('No valid tab ID provided for STORE_ANALYSIS');

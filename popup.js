@@ -115,6 +115,17 @@ class PopupController {
           this.onElementSelected(stored[key]);
           await chrome.storage.session.remove(key);
         }
+
+        // Restore analysis results if background has stored data for this tab
+        try {
+          const analysisResponse = await this.sendMessage('GET_ANALYSIS', { tabId: this.currentTab.id });
+          if (analysisResponse && analysisResponse.data) {
+            this.analysisData = analysisResponse.data;
+            this.displayResults();
+          }
+        } catch (_) {
+          // No stored analysis — normal state for fresh tabs
+        }
       } else {
         this.updateStatus('error', 'No active tab found');
       }
@@ -197,18 +208,25 @@ class PopupController {
 
       // Step 2: Analyze website content
       console.log('Starting website content analysis');
-      const websiteData = await this.analyzeWebsiteContent();
-      console.log('Website analysis complete:', websiteData);
-      this.updateProgress(40, 'Discovering assets...');
+      const analysisResult = await this.analyzeWebsiteContent();
+      console.log('Website analysis complete:', analysisResult);
 
-      // Step 3: Capture network data
-      let networkData = [];
-      if (options.captureNetwork) {
-        networkData = await this.getNetworkData();
-        this.updateProgress(60, 'Capturing network requests...');
+      // Step 3: Pull complete data from background (primary path) or use directly (fallback)
+      let analysisData;
+      if (analysisResult && analysisResult.success) {
+        this.updateProgress(50, 'Retrieving analysis data...');
+        const response = await this.sendMessage('GET_ANALYSIS', { tabId: this.currentTab.id });
+        if (!response || !response.data) {
+          throw new Error('GET_ANALYSIS failed: ' + (response?.error || 'no data returned'));
+        }
+        analysisData = response.data;
+      } else {
+        // Fallback paths return data directly
+        analysisData = analysisResult;
       }
+      this.updateProgress(60, 'Processing results...');
 
-      // Step 4: Take screenshot
+      // Step 4: Take screenshot (stays in popup — not routed through background)
       let screenshot = null;
       if (options.takeScreenshot) {
         this.updateProgress(70, 'Taking screenshot...');
@@ -218,21 +236,13 @@ class PopupController {
 
       // Step 5: Compile results
       this.analysisData = {
-        ...websiteData,
-        networkRequests: networkData,
+        ...analysisData,
         screenshot: screenshot,
         options: options,
         timestamp: new Date().toISOString()
       };
 
       this.updateProgress(100, 'Analysis complete!');
-
-      // Store analysis data with tab ID
-      console.log('Storing analysis data:', this.analysisData);
-      await this.sendMessage('STORE_ANALYSIS', {
-        tabId: this.currentTab.id,
-        ...this.analysisData
-      });
 
       // Update UI with results
       this.displayResults();
@@ -282,8 +292,8 @@ class PopupController {
             console.error('Content script communication failed:', chrome.runtime.lastError.message);
             this.performFallbackAnalysis().then(resolve).catch(reject);
           } else if (response && response.success) {
-            console.log('Content script analysis successful');
-            resolve(response.data);
+            console.log('Content script analysis successful — pull from background');
+            resolve({ success: true });
           } else {
             console.warn('Content script analysis failed, trying fallback');
             this.performFallbackAnalysis().then(resolve).catch(reject);
@@ -847,7 +857,7 @@ class PopupController {
     this.servicesCount.textContent = totalServices;
 
     // Tracking events count
-    const totalTrackingEvents = this.analysisData.trackingData ? this.analysisData.trackingData.dataLayer.length : 0;
+    const totalTrackingEvents = this.analysisData.trackingData?.dataLayer?.length ?? 0;
     this.trackingCount.textContent = totalTrackingEvents;
 
     // Show frameworks
