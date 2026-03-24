@@ -27,8 +27,8 @@ An LLM can be handed any component's output and know exactly how to rebuild it �
 
 ### Active
 
-- [ ] Computed styles per element — extract `getComputedStyle` for every DOM element, deduplicated for repeated elements (e.g. identical siblings collapse to one representative sample), structured so an LLM can understand which styles apply to which element
-- [ ] Interaction state styles — extract CSS rules for `:hover`, `:focus`, `:active`, `:disabled` states from stylesheet rules (not just default computed state)
+- [x] Computed styles per element — extract `getComputedStyle` for every DOM element, deduplicated for repeated elements (e.g. identical siblings collapse to one representative sample), structured so an LLM can understand which styles apply to which element (Validated in Phase 7: 35 verification tests confirm STYLE-01)
+- [x] Interaction state styles — extract CSS rules for `:hover`, `:focus`, `:active`, `:disabled` states from stylesheet rules (not just default computed state) (Validated in Phase 7: verification tests confirm STYLE-02)
 - [ ] Actual asset downloading — fetch and save images, fonts, icons as real files rather than URL references only
 - [x] GA / tracking plan extraction — capture `dataLayer` push history, GTM container config, and event schema so the tracking plan is reproducible (Validated in Phase 4-5: tracking capture + popup display fix)
 - [ ] Component hierarchy mapping — annotate the DOM tree with logical component boundaries to make nesting and layout structure legible to an LLM
@@ -68,4 +68,4 @@ Sites of interest are all large stock media platforms with module federation / m
 | No build system | Extension loads unpacked; adding webpack/Vite introduces friction for contributors and the primary author | — Pending |
 
 ---
-*Last updated: 2026-03-24 after Phase 6 completion — hardcoded detection removed, CSS export populated*
+*Last updated: 2026-03-24 after Phase 7 completion — Phase 2 style capture verified (STYLE-01, STYLE-02, STYLE-03 all PASS)*
