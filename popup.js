@@ -318,9 +318,18 @@ class PopupController {
 
     } catch (error) {
       console.warn('DOM inspection failed:', error.message);
-      console.log('Using network-only analysis with known patterns');
+      console.log('Using network-only analysis with network-based service detection');
 
-      // Final fallback: network-only with known site patterns
+      // Network-based service detection (replaces hardcoded hostname map per D-01, D-02)
+      let networkServices = [];
+      try {
+        const result = await chrome.runtime.sendMessage({ action: 'GET_SERVICES_FROM_NETWORK' });
+        networkServices = (result && result.data) || [];
+      } catch (e) {
+        console.warn('Network service detection failed:', e.message);
+      }
+
+      // Final fallback: network-only with network-based service detection
       return {
         url: this.currentTab.url,
         title: this.currentTab.title,
@@ -329,7 +338,7 @@ class PopupController {
           css: [], js: [], images: [], fonts: [], other: []
         },
         frameworks: [],
-        thirdPartyServices: this.detectServicesForKnownSites(new URL(this.currentTab.url).hostname.toLowerCase()),
+        thirdPartyServices: networkServices,
         metadata: { title: this.currentTab.title, note: 'Network analysis only' },
         analysisMode: 'network-only-final',
         cspRestricted: true,
@@ -629,13 +638,10 @@ class PopupController {
 
       const domServices = results[0]?.result || [];
 
-      // Add known site patterns
-      const knownServices = this.detectServicesForKnownSites(new URL(this.currentTab.url).hostname.toLowerCase());
-
-      return [...domServices, ...knownServices];
+      return domServices;
     } catch (error) {
       console.error('Service inspection failed:', error);
-      return this.detectServicesForKnownSites(new URL(this.currentTab.url).hostname.toLowerCase());
+      return [];
     }
   }
 
@@ -703,11 +709,6 @@ class PopupController {
       // Enhanced service detection for CSP-restricted sites
       const detectedServices = [];
       const url = pageData.url || '';
-      const hostname = new URL(url).hostname.toLowerCase();
-
-      // Site-specific service detection based on known patterns
-      const siteServices = this.detectServicesForKnownSites(hostname);
-      detectedServices.push(...siteServices);
 
       // Common service patterns that might be in URLs or be detectable without full DOM access
       const servicePatterns = [
@@ -756,43 +757,6 @@ class PopupController {
         }
       };
     }
-  }
-
-  detectServicesForKnownSites(hostname) {
-    const knownSites = {
-      'example-ecommerce.com': [
-        { name: 'Adobe Analytics', category: 'Analytics', confidence: 'high' },
-        { name: 'Google Analytics', category: 'Analytics', confidence: 'high' },
-        { name: 'Google Ads', category: 'Advertising', confidence: 'high' },
-        { name: 'Facebook Pixel', category: 'Advertising', confidence: 'medium' },
-        { name: 'Optimizely', category: 'A/B Testing', confidence: 'medium' },
-        { name: 'Salesforce DMP', category: 'Marketing', confidence: 'medium' }
-      ],
-      'github.com': [
-        { name: 'Google Analytics', category: 'Analytics', confidence: 'high' },
-        { name: 'Segment', category: 'Analytics', confidence: 'high' },
-        { name: 'New Relic', category: 'Performance', confidence: 'high' }
-      ],
-      'amazon.com': [
-        { name: 'Amazon Analytics', category: 'Analytics', confidence: 'high' },
-        { name: 'Google Analytics', category: 'Analytics', confidence: 'medium' },
-        { name: 'Adobe Target', category: 'Personalization', confidence: 'high' }
-      ],
-      'netflix.com': [
-        { name: 'Netflix Analytics', category: 'Analytics', confidence: 'high' },
-        { name: 'Google Analytics', category: 'Analytics', confidence: 'medium' },
-        { name: 'Adobe Analytics', category: 'Analytics', confidence: 'medium' }
-      ]
-    };
-
-    const services = knownSites[hostname] || [];
-    return services.map(service => ({
-      name: service.name,
-      urls: [`https://${hostname}`],
-      category: service.category,
-      confidence: service.confidence,
-      source: 'known-site-pattern'
-    }));
   }
 
   async getNetworkData() {
