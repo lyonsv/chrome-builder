@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Chrome extension that captures a comprehensive snapshot of any website — HTML, CSS, computed styles, assets, network requests, third-party tools, and tracking plans — and exports them as a structured directory of files that an LLM can consume to reconstruct the site's UI with pixel-perfect accuracy. Built for design system extraction and frontend migration workflows, not tied to any specific site.
+A Chrome extension that captures a comprehensive snapshot of any website — HTML, CSS, computed styles, assets, network requests, third-party tools, and tracking plans — and exports them as a structured ZIP directory that an LLM can consume to reconstruct the site's UI with pixel-perfect accuracy. Built for design system extraction and frontend migration workflows, not tied to any specific site.
 
 ## Core Value
 
@@ -23,17 +23,23 @@ An LLM can be handed any component's output and know exactly how to rebuild it �
 - ✓ Network request capture via `chrome.webRequest` — existing
 - ✓ Next.js SSR data extraction (`__NEXT_DATA__`, Apollo state, GraphQL queries) — existing
 - ✓ Module Federation / microfrontend detection (`window.experiences`, remote entries) — existing
-- ✓ Single JSON bundle download — existing
+- ✓ Single JSON bundle download — existing (superseded by ZIP directory in v1.0)
+- ✓ Computed styles per element — deduplicated by element signature, ~67 design-system-relevant CSS properties — v1.0
+- ✓ Interaction state styles — `:hover`, `:focus`, `:active`, `:disabled` rules from stylesheet inspection — v1.0
+- ✓ GA / tracking plan extraction — dataLayer history, GTM container config, event schema derivation — v1.0
+- ✓ Structured directory output — ZIP with index.json, /html, /css, /computed-styles, /assets, /network, /tracking — v1.0
+- ✓ Agnostic site detection — all detection via generic observable patterns, zero hardcoded site names — v1.0
+- ✓ Chunked IPC transport — 512KB chunks with ack/retry/progress, handles 2-5MB payloads — v1.0
+- ✓ Service worker keep-alive — chrome.alarms + storage.session checkpoints prevent data loss — v1.0
+- ✓ Element-scoped capture — click-to-select picker, subtree-only analysis, scoped ZIP output — v1.0
+- ✓ Component hierarchy annotation — React fiber walk, Vue/Angular internals, BEM patterns, data-attributes — v1.0
 
 ### Active
 
-- [x] Computed styles per element — extract `getComputedStyle` for every DOM element, deduplicated for repeated elements (e.g. identical siblings collapse to one representative sample), structured so an LLM can understand which styles apply to which element (Validated in Phase 7: 35 verification tests confirm STYLE-01)
-- [x] Interaction state styles — extract CSS rules for `:hover`, `:focus`, `:active`, `:disabled` states from stylesheet rules (not just default computed state) (Validated in Phase 7: verification tests confirm STYLE-02)
 - [ ] Actual asset downloading — fetch and save images, fonts, icons as real files rather than URL references only
-- [x] GA / tracking plan extraction — capture `dataLayer` push history, GTM container config, and event schema so the tracking plan is reproducible (Validated in Phase 4-5: tracking capture + popup display fix)
-- [ ] Component hierarchy mapping — annotate the DOM tree with logical component boundaries to make nesting and layout structure legible to an LLM
-- [x] Structured directory output — replace single JSON bundle with a folder: `index.json`, `/html`, `/css`, `/computed-styles`, `/assets`, `/network`, `/tracking` (Validated in Phase 3+6: scoped output with CSS file population)
-- [x] Agnostic site detection — all detection logic (module federation, component architecture patterns, analytics) expressed as generic patterns, no hardcoded site names in code (Validated in Phase 6: removed detectServicesForKnownSites, replaced with network-based pattern matching)
+- [ ] Responsive breakpoint variants — capture computed styles at multiple viewport widths
+- [ ] Visual screenshot scoping — screenshot cropped to selected component
+- [ ] Design token manifest extraction — standalone color palette, type scale, spacing scale from CSS variables
 
 ### Out of Scope
 
@@ -41,14 +47,15 @@ An LLM can be handed any component's output and know exactly how to rebuild it �
 - Site-specific hardcoding — target sites handled by generic detection that happens to work well across stock photo / media platforms
 - Mobile app — web extension only
 - Full JS execution tracing — capturing runtime behavior beyond what's observable in the DOM and network layer
+- Auth-gated asset downloading — assets requiring session cookies; only publicly fetchable assets
 
 ## Context
 
-The extension currently exports a single large JSON file and captures asset URLs but does not download the assets themselves. The biggest gap for the primary use case (design system extraction) is `getComputedStyle` per element — without this, an LLM cannot know the rendered typography, spacing, and color values for a specific component.
+Shipped v1.0 with 7,524 LOC JavaScript (plain, no build system). The extension now produces a structured ZIP directory containing HTML, computed styles, CSS files, component hierarchy annotations, network requests, and tracking plans. Element-scoped capture lets users select a single component and get only that subtree's data.
 
-The first concrete use case is extracting the design system from a stock photo platform homepage: capturing the header, nav, search bar, and card grid components so a React design system can be built from them.
+The primary use case is extracting design systems from stock media platform homepages: capturing the header, nav, search bar, and card grid components so a React design system can be built from them.
 
-Sites of interest are all large stock media platforms with module federation / microfrontend architectures, shared design patterns, and heavy use of Next.js and custom component data in `window`.
+The biggest remaining gap is actual asset downloading — images, fonts, and icons are captured as URL references but not yet fetched and saved as real files in the ZIP.
 
 ## Constraints
 
@@ -62,10 +69,12 @@ Sites of interest are all large stock media platforms with module federation / m
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Directory output over single JSON | LLMs can't consume 50MB+ in one context window; directory lets you selectively load just what's needed | — Pending |
-| Dedup repeated elements in computed styles | Same-class siblings (gallery cards, nav items) produce identical styles; collapse to one sample | — Pending |
-| Route asset downloads through background service worker | Content scripts can't call `chrome.downloads`; background already handles download orchestration | — Pending |
-| No build system | Extension loads unpacked; adding webpack/Vite introduces friction for contributors and the primary author | — Pending |
+| Directory output over single JSON | LLMs can't consume 50MB+ in one context window; directory lets you selectively load just what's needed | ✓ Good — ZIP with 7 directories works well |
+| Dedup repeated elements in computed styles | Same-class siblings (gallery cards, nav items) produce identical styles; collapse to one sample | ✓ Good — signature-based dedup with occurrence count |
+| Route asset downloads through background service worker | Content scripts can't call `chrome.downloads`; background already handles download orchestration | ✓ Good — fetchAssets() in background handles CORS |
+| No build system | Extension loads unpacked; adding webpack/Vite introduces friction for contributors and the primary author | ✓ Good — vendored fflate via importScripts, Jest for tests |
+| Chunked IPC with ack/retry | Single sendMessage fails at ~5MB; chunking with backpressure keeps Chrome stable | ✓ Good — 512KB chunks, 3 retries, progress bar |
+| GET_ANALYSIS pull pattern for popup | Content script sends data to background via chunks; popup pulls display summary separately | ✓ Good — decouples data assembly from display |
 
 ---
-*Last updated: 2026-03-24 after Phase 7 completion — Phase 2 style capture verified (STYLE-01, STYLE-02, STYLE-03 all PASS)*
+*Last updated: 2026-03-24 after v1.0 milestone*
