@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: Milestone complete
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-24T14:40:01.006Z"
+milestone_name: MVP
+status: v1.0 milestone shipped
+stopped_at: Milestone complete
+last_updated: "2026-03-24"
 progress:
   total_phases: 7
   completed_phases: 7
@@ -16,110 +16,32 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** An LLM can be handed any component's output and know exactly how to rebuild it — the right HTML structure, the right computed styles, the right assets — with no guessing.
-**Current focus:** Phase 07 — verify-phase2-style-capture
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 07
-Plan: Not started
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: none yet
-- Trend: -
-
-*Updated after each plan completion*
-| Phase 01-infrastructure-foundation P01 | 2min | 2 tasks | 5 files |
-| Phase 01-infrastructure-foundation P02 | 12 | 2 tasks | 2 files |
-| Phase 01-infrastructure-foundation P03 | 2 | 2 tasks | 2 files |
-| Phase 01-infrastructure-foundation P04 | 2 | 2 tasks | 3 files |
-| Phase 03-scoped-output-and-assets P01 | 4 | 2 tasks | 7 files |
-| Phase 03-scoped-output-and-assets P02 | 20 | 2 tasks | 3 files |
-| Phase 03-scoped-output-and-assets P03 | 5 | 1 tasks | 2 files |
-| Phase 03-scoped-output-and-assets P04 | 5 | 2 tasks | 6 files |
-| Phase 04-tracking-plan P01 | 2 | 2 tasks | 2 files |
-| Phase 04-tracking-plan P02 | 2 | 2 tasks | 3 files |
-| Phase 05-fix-popup-data-display P01 | 2 | 2 tasks | 3 files |
-| Phase 06-fix-detection-and-css-export P01 | 3 | 2 tasks | 3 files |
-| Phase 06-fix-detection-and-css-export P02 | 4 | 2 tasks | 2 files |
-| Phase 07-verify-phase2-style-capture P01 | 4 | 2 tasks | 3 files |
+Milestone v1.0 shipped 2026-03-24.
+Next: `/gsd:new-milestone` to start v1.1 planning.
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Roadmap: Directory output over single JSON — LLMs can't consume 50MB+ in one context window; directory + ZIP lets you selectively load what's needed
-- Roadmap: Dedup repeated elements in computed styles — same-class siblings produce identical styles; collapse to one sample before crossing IPC boundary
-- Roadmap: Route asset downloads through background service worker — content scripts can't call `chrome.downloads`; background holds `<all_urls>` host permission
-- Roadmap: TRACK-03 assigned to Phase 1 — agnostic detection is infrastructure cleanup required before any feature ships
-- [Phase 01-infrastructure-foundation]: site4source.html deleted (not renamed) — contained full site4 site content, no value as generic test fixture
-- [Phase 01-infrastructure-foundation]: Detection comments must describe observable signals only (global variable shape, count thresholds) — never site names
-- [Phase 01-infrastructure-foundation]: Used chrome.alarms (not setInterval) for SW keep-alive — alarms persist across SW termination, setInterval is destroyed
-- [Phase 01-infrastructure-foundation]: Checkpoints store only minimal metadata (stage, tabId, url, ts) not full payload — session storage quota is 10MB shared
-- [Phase 01-infrastructure-foundation]: fflate loaded via importScripts (not bundled) — MV3 service workers support importScripts, keeps background.js readable
-- [Phase 01-infrastructure-foundation]: saveAs:false on chrome.downloads — INFRA-03: zero-dialog single automatic download per capture
-- [Phase 01-infrastructure-foundation]: downloadAnalysisPackage() deleted entirely — ZIP is the only output path, no dead code fallback
-- [Phase 01-infrastructure-foundation]: ANALYZE_WEBSITE routes large payloads via sendChunked() to background — eliminates popup-not-ready race condition
-- [Phase 01-infrastructure-foundation]: CHUNK_THRESHOLD at 256 KB — payloads under threshold use direct sendMessage path with no chunking overhead
-- [Phase 03-scoped-output-and-assets]: Used setupFilesAfterEnv instead of setupFiles — beforeEach requires jest globals to be initialized first
-- [Phase 03-scoped-output-and-assets]: test.todo() stubs serve as executable specification documents — plans 02-04 convert them to real tests
-- [Phase 03-scoped-output-and-assets]: Picker overlay uses inset:0 fixed div at z-index 2147483647 with pointer-events toggle to hit real elements via elementFromPoint
-- [Phase 03-scoped-output-and-assets]: CSS selector generation is id-first (#id) then tag+dot-classes — no nth-child complexity for Phase 3 scope targeting
-- [Phase 03-scoped-output-and-assets]: outerHTML truncated to 500 chars in ELEMENT_SELECTED message to stay within Chrome IPC size limits
-- [Phase 03-scoped-output-and-assets]: updateUI() restores scope-aware label after analysis completes — prevents 'Start Analysis' stomping 'Analyze Selected Element'
-- [Phase 03-scoped-output-and-assets]: Detection methods use _ prefix convention on WebsiteAnalyzer to distinguish internal helpers from public API (buildComponentHierarchy)
-- [Phase 03-scoped-output-and-assets]: Test file uses inline function copies matching content.js — content.js has no module system, inline approach avoids build tooling
-- [Phase 03-scoped-output-and-assets]: Jest toHaveProperty() with dots/slashes parses as nested path — use Object.keys() + toContain() for literal key checks
-- [Phase 03-scoped-output-and-assets]: Binary asset data stays in background SW through ZIP assembly — URL list only crosses IPC boundary (Pitfall 6 prevention)
-- [Phase 03-scoped-output-and-assets]: extractScopedComputedStyles() sets full:true on each entry — signals no baseline subtraction for scoped standalone reconstruction
-- [Phase 04-tracking-plan]: Inline function copies in tracking tests — content.js has no module system; test file replicates captureTrackingData and deriveEventSchema inline
-- [Phase 04-tracking-plan]: captureTrackingData() placed after categorizeService() in WebsiteAnalyzer, called synchronously after moduleFederationData in analyzeWebsite()
-- [Phase 04-tracking-plan]: fileTree['index.json'] encoding moved to after all content blocks in downloadAsZip() — ensures indexData.tracking summary is captured before encoding (Pitfall 2)
-- [Phase 04-tracking-plan]: tracking/ files always written regardless of data presence — consistent with network/ pattern for uniform ZIP structure
-- [Phase 05-fix-popup-data-display]: GET_ANALYSIS strips heavy fields before returning to popup — computedStyles and scopedHtml can be 10MB+, only display summary needed
-- [Phase 05-fix-popup-data-display]: STORE_ANALYSIS call removed from popup.js startAnalysis — content script already stores via sendChunked(), double-store was redundant and wrote undefined data
-- [Phase 05-fix-popup-data-display]: loadCurrentTab() GET_ANALYSIS failure is silently caught — no stored analysis is normal for fresh tabs, not an error
-- [Phase 06-fix-detection-and-css-export]: Network URL pattern matching over hostname map for service detection — eliminates TRACK-03 violation, works for any site without prior knowledge
-- [Phase 06-fix-detection-and-css-export]: categorizeServiceName returns 'Other' for unknown services — consistent with popup display sentinel value
-- [Phase 06-fix-detection-and-css-export]: Three-strategy CSS detection: webRequest type field (primary) > content-type header > .css URL pattern (fallback)
-- [Phase 06-fix-detection-and-css-export]: CSS URL extraction: analysisData (DOM path) as primary source, networkData as fallback — mirrors Phase 3 asset pattern
-- [Phase 06-fix-detection-and-css-export]: CSS failures merged into shared failedAssets array — consistent with Phase 3 asset error reporting in index.json
-- [Phase 07-verify-phase2-style-capture]: DESIGN_SYSTEM_PROPERTIES has 67 properties not ~62 as cited in plan — tests use DESIGN_SYSTEM_PROPERTIES.length rather than hardcoded 62
-- [Phase 07-verify-phase2-style-capture]: D-08 global/element baseline subtraction not implemented — tests assert structural separation only, not property subtraction
-- [Phase 07-verify-phase2-style-capture]: Duck-type CSSStyleRule check: typeof rule.selectorText === 'string' established as the Node-environment pattern for all style-rule tests
+All v1.0 decisions archived in PROJECT.md Key Decisions table and milestones/v1.0-ROADMAP.md.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- Phase 3 research flag: ZIP strategy (single zip via inlined fflate vs multi-file downloads) must be decided before Phase 3 implementation begins — evaluate fflate as a zero-dependency single-file include
-- Phase 3 research flag: React 18/19 fiber property names (`__reactFiber`, `__reactProps`) should be verified before Phase 3 component boundary implementation
-- Phase 4 research flag: `document_start` persistent content script for dataLayer proxy may conflict with the extension's on-demand injection model — evaluate before Phase 4 design
+None — all v1.0 blockers resolved.
 
 ## Session Continuity
 
-Last session: 2026-03-24T14:35:25.741Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-24
+Stopped at: v1.0 milestone complete
 Resume file: None
