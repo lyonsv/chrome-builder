@@ -107,6 +107,16 @@ completed: 2026-03-24
 - 07-VERIFICATION.md and updated 02-VALIDATION.md provide audit trail
 - Two low-severity gaps documented in VERIFICATION.md for optional follow-up (property count docs update, D-08 baseline subtraction)
 
+## Self-Check: PASSED
+
+- FOUND: tests/unit/style-capture.test.js
+- FOUND: .planning/phases/07-verify-phase2-style-capture/07-VERIFICATION.md
+- FOUND: .planning/phases/02-style-capture/02-VALIDATION.md
+- FOUND: .planning/phases/07-verify-phase2-style-capture/07-01-SUMMARY.md
+- FOUND: commit a8da4c9 (test file in worktree branch)
+- FOUND: commit 2a483d6 (verification docs in main)
+- FOUND: commit c51ba79 (metadata/summary in main)
+
 ---
 *Phase: 07-verify-phase2-style-capture*
 *Completed: 2026-03-24*
