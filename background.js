@@ -62,6 +62,151 @@ function deriveEventSchema(dataLayerEntries) {
   }));
 }
 
+// Service URL patterns for network-based service detection (generic, no hardcoded site names).
+// Source of truth: mirrors content.js servicePatterns, name+patterns fields only.
+const SERVICE_URL_PATTERNS = [
+  // Analytics
+  { name: 'Google Analytics', patterns: ['google-analytics.com', 'googletagmanager.com', 'gtag', 'analytics.js', 'ga.js'] },
+  { name: 'Adobe Analytics', patterns: ['omtrdc.net', 'adobe.com/analytics', 'metrics.adobe.com'] },
+  { name: 'Hotjar', patterns: ['hotjar.com', 'hotjar.io'] },
+  { name: 'Mixpanel', patterns: ['mixpanel.com', 'cdn.mxpnl.com'] },
+  { name: 'Segment', patterns: ['segment.com', 'segment.io', 'cdn.segment.com'] },
+
+  // Advertising
+  { name: 'Google Ads', patterns: ['googleadservices.com', 'googlesyndication.com', 'doubleclick.net'] },
+  { name: 'Facebook Pixel', patterns: ['facebook.net', 'fbevents.js', 'connect.facebook.net'] },
+  { name: 'Amazon Advertising', patterns: ['amazon-adsystem.com'] },
+  { name: 'Bing Ads', patterns: ['bat.bing.com'] },
+
+  // Social Media
+  { name: 'Twitter', patterns: ['platform.twitter.com', 'syndication.twitter.com', 'twimg.com'] },
+  { name: 'LinkedIn', patterns: ['platform.linkedin.com', 'ads.linkedin.com'] },
+  { name: 'Instagram', patterns: ['instagram.com', 'cdninstagram.com'] },
+  { name: 'YouTube', patterns: ['youtube.com', 'ytimg.com', 'googlevideo.com'] },
+
+  // Customer Support
+  { name: 'Intercom', patterns: ['widget.intercom.io', 'intercom.io'] },
+  { name: 'Zendesk', patterns: ['zendesk.com', 'zdassets.com'] },
+  { name: 'Freshdesk', patterns: ['freshdesk.com'] },
+  { name: 'Help Scout', patterns: ['helpscout.net'] },
+
+  // Payments
+  { name: 'Stripe', patterns: ['js.stripe.com', 'stripe.com'] },
+  { name: 'PayPal', patterns: ['paypal.com/sdk', 'paypalobjects.com'] },
+  { name: 'Square', patterns: ['squareup.com', 'square.com'] },
+  { name: 'Braintree', patterns: ['braintreegateway.com'] },
+
+  // CDNs
+  { name: 'Cloudflare', patterns: ['cdnjs.cloudflare.com', 'cloudflare.com'] },
+  { name: 'AWS CloudFront', patterns: ['cloudfront.net'] },
+  { name: 'JSDelivr CDN', patterns: ['cdn.jsdelivr.net'] },
+  { name: 'unpkg CDN', patterns: ['unpkg.com'] },
+  { name: 'Bootstrap CDN', patterns: ['bootstrapcdn.com'] },
+  { name: 'Google Fonts', patterns: ['fonts.googleapis.com', 'fonts.gstatic.com'] },
+
+  // Email Marketing
+  { name: 'Mailchimp', patterns: ['mailchimp.com', 'list-manage.com'] },
+  { name: 'Constant Contact', patterns: ['constantcontact.com'] },
+  { name: 'SendGrid', patterns: ['sendgrid.com'] },
+
+  // Error Tracking
+  { name: 'Sentry', patterns: ['sentry.io'] },
+  { name: 'Bugsnag', patterns: ['bugsnag.com'] },
+  { name: 'LogRocket', patterns: ['logrocket.com'] },
+
+  // Performance Monitoring
+  { name: 'New Relic', patterns: ['newrelic.com'] },
+  { name: 'DataDog', patterns: ['datadoghq.com'] }
+];
+
+// Plain function (not class method) — same lookup as content.js categorizeService().
+function categorizeServiceName(name) {
+  const categories = {
+    // Analytics
+    'Google Analytics': 'Analytics',
+    'Adobe Analytics': 'Analytics',
+    'Hotjar': 'Analytics',
+    'Mixpanel': 'Analytics',
+    'Segment': 'Analytics',
+
+    // Advertising
+    'Google Ads': 'Advertising',
+    'Facebook Pixel': 'Advertising',
+    'Amazon Advertising': 'Advertising',
+    'Bing Ads': 'Advertising',
+
+    // Social Media
+    'Twitter': 'Social Media',
+    'LinkedIn': 'Social Media',
+    'Instagram': 'Social Media',
+    'YouTube': 'Social Media',
+
+    // Customer Support
+    'Intercom': 'Customer Support',
+    'Zendesk': 'Customer Support',
+    'Freshdesk': 'Customer Support',
+    'Help Scout': 'Customer Support',
+
+    // Payments
+    'Stripe': 'Payments',
+    'PayPal': 'Payments',
+    'Square': 'Payments',
+    'Braintree': 'Payments',
+
+    // CDNs
+    'Cloudflare': 'CDN',
+    'AWS CloudFront': 'CDN',
+    'JSDelivr CDN': 'CDN',
+    'unpkg CDN': 'CDN',
+    'Bootstrap CDN': 'CDN',
+    'Google Fonts': 'CDN',
+
+    // Email Marketing
+    'Mailchimp': 'Email Marketing',
+    'Constant Contact': 'Email Marketing',
+    'SendGrid': 'Email Marketing',
+
+    // Error Tracking
+    'Sentry': 'Error Tracking',
+    'Bugsnag': 'Error Tracking',
+    'LogRocket': 'Error Tracking',
+
+    // Performance Monitoring
+    'New Relic': 'Performance',
+    'DataDog': 'Performance'
+  };
+  return categories[name] || 'Other';
+}
+
+// Pure function: match network request URLs against SERVICE_URL_PATTERNS.
+// Deduplicates by service name; collects all matching URLs per service.
+function detectServicesFromNetworkRequests(requests) {
+  const seen = new Map();
+  for (const req of requests) {
+    const url = req.url || '';
+    for (const service of SERVICE_URL_PATTERNS) {
+      if (service.patterns.some(p => url.includes(p))) {
+        if (!seen.has(service.name)) {
+          seen.set(service.name, {
+            name: service.name,
+            urls: [url],
+            category: categorizeServiceName(service.name),
+            confidence: 'medium',
+            source: 'network-request'
+          });
+        } else {
+          const entry = seen.get(service.name);
+          if (!entry.urls.includes(url)) {
+            entry.urls.push(url);
+          }
+        }
+        break; // Only match first service per URL
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
 class MigrationAnalyzer {
   constructor() {
     this.networkRequests = new Map(); // Store all requests for all tabs
@@ -351,6 +496,13 @@ class MigrationAnalyzer {
           console.log('Debug info:', debugInfo);
           sendResponse({ success: true, data: debugInfo });
           break;
+
+        case 'GET_SERVICES_FROM_NETWORK': {
+          const networkData = this.networkRequests.get(tabId) || [];
+          const services = detectServicesFromNetworkRequests(networkData);
+          sendResponse({ success: true, data: services });
+          break;
+        }
 
         default:
           console.warn(`Unknown action received: ${action}`);
